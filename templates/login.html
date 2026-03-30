@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — HR Master Data</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'IBM Plex Sans',sans-serif;background:#0f1f3d;min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.login-wrap{width:100%;max-width:420px;padding:20px;}
+.login-card{background:#fff;border-radius:16px;padding:40px;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+.login-logo{text-align:center;margin-bottom:32px;}
+.company-name{font-size:11px;color:#e8a020;font-weight:600;letter-spacing:.14em;text-transform:uppercase;margin-bottom:4px;}
+.system-name{font-size:22px;font-weight:700;color:#0f1f3d;}
+.system-name span{color:#e8a020;}
+.login-sub{font-size:13px;color:#7a8aaa;margin-top:4px;}
+.form-group{margin-bottom:16px;}
+label{display:block;font-size:11px;font-weight:600;color:#7a8aaa;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+input{width:100%;padding:10px 14px;border:1.5px solid #e8ecf2;border-radius:8px;font-size:14px;font-family:'IBM Plex Sans',sans-serif;color:#1a2540;transition:border-color .15s;}
+input:focus{outline:none;border-color:#1a3260;box-shadow:0 0 0 3px rgba(26,50,96,0.08);}
+.btn-login{width:100%;padding:12px;background:#0f1f3d;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:background .15s;margin-top:8px;}
+.btn-login:hover{background:#1a3260;}
+.alert{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;}
+.alert-error{background:#fdf0ef;color:#c0392b;border:1px solid #f5c6c2;}
+</style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="company-name">Mitra Karya Texindo</div>
+      <div class="system-name">HR <span>Master</span> Data</div>
+      <div class="login-sub">Sistem Data Karyawan / Employee Data System</div>
+    </div>
+
+    {% for cat, msg in get_flashed_messages(with_categories=True) %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+
+    <form method="POST">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" name="username" required autofocus placeholder="Masukkan username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" name="password" required placeholder="Masukkan password">
+      </div>
+      <button type="submit" class="btn-login">Masuk / Login</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

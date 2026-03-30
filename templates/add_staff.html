@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}Tambah Karyawan{% endblock %}
+{% block page_title %}Tambah Karyawan Baru{% endblock %}
+
+{% block content %}
+<div style="max-width:760px;">
+<form method="POST" id="add-form">
+
+  <!-- Section 1: KTP -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><div class="card-title">1. Verifikasi KTP</div></div>
+    <div class="card-body">
+      <div class="form-group">
+        <label>Nomor KTP <span class="required">*</span></label>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input type="text" name="ktp_number" id="ktp-input" required maxlength="16" minlength="16" placeholder="16 digit nomor KTP" style="flex:1;" oninput="checkKTP(this.value)">
+          <div id="ktp-status" style="font-size:13px;font-weight:500;min-width:140px;"></div>
+        </div>
+        <div id="ktp-warning" style="display:none;margin-top:8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: Personal Data -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><div class="card-title">2. Data Pribadi / Personal Data</div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Nama Lengkap <span class="required">*</span></label>
+          <input type="text" name="full_name" required placeholder="Nama lengkap sesuai KTP">
+        </div>
+        <div class="form-group">
+          <label>Tanggal Lahir <span class="required">*</span></label>
+          <input type="date" name="birth_date" required>
+        </div>
+        <div class="form-group">
+          <label>Jenis Kelamin <span class="required">*</span></label>
+          <select name="gender" required>
+            <option value="">— Pilih —</option>
+            <option value="Laki-laki">Laki-laki / Male</option>
+            <option value="Perempuan">Perempuan / Female</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Agama <span class="required">*</span></label>
+          <select name="religion" required>
+            <option value="">— Pilih —</option>
+            {% for r in religions %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Pendidikan Terakhir <span class="required">*</span></label>
+          <select name="education" required>
+            <option value="">— Pilih —</option>
+            <option>SD</option><option>SMP</option><option>SMA/SMK</option>
+            <option>D3</option><option>S1</option><option>S2</option><option>Lainnya</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>No. HP <span class="required">*</span></label>
+          <input type="text" name="phone" required placeholder="08xx-xxxx-xxxx">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3: Address -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><div class="card-title">3. Alamat / Address</div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Alamat (Jalan & No. Rumah) <span class="required">*</span></label>
+          <textarea name="address" required placeholder="Nama jalan dan nomor rumah sesuai KTP" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+          <label>RT / RW <span class="required">*</span></label>
+          <input type="text" name="rt_rw" required placeholder="Contoh: 003/005">
+        </div>
+        <div class="form-group">
+          <label>Kelurahan / Desa <span class="required">*</span></label>
+          <input type="text" name="kelurahan" required placeholder="Nama kelurahan atau desa">
+        </div>
+        <div class="form-group">
+          <label>Kecamatan <span class="required">*</span></label>
+          <input type="text" name="kecamatan" required placeholder="Nama kecamatan">
+        </div>
+        <div class="form-group">
+          <label>Kota / Kabupaten <span class="required">*</span></label>
+          <input type="text" name="kota" required placeholder="Nama kota atau kabupaten">
+        </div>
+        <div class="form-group">
+          <label>Provinsi <span class="required">*</span></label>
+          <select name="provinsi" required>
+            <option value="">— Pilih Provinsi —</option>
+            {% for p in provinces %}
+            <option value="{{ p }}">{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 4: Employment -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><div class="card-title">4. Data Kerja / Employment</div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Departemen <span class="required">*</span></label>
+          <select name="department" id="dept-select" required onchange="updatePositions(this.value)">
+            <option value="">— Pilih Departemen —</option>
+            {% for dept in departments.keys() %}
+            <option value="{{ dept }}">{{ dept }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Jabatan / Position <span class="required">*</span></label>
+          <select name="position" id="position-select" required>
+            <option value="">— Pilih Departemen dulu —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tipe Karyawan <span class="required">*</span></label>
+          <select name="staff_type" id="staff-type" required onchange="toggleStaffType(this.value)">
+            <option value="">— Pilih —</option>
+            <option value="HL-Lamaran">HL-Lamaran (Direct Hire)</option>
+            <option value="HL-Outsource">HL-Outsource (Via Sponsor)</option>
+            <option value="PKWT">PKWT (Kontrak)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tanggal Mulai Kerja <span class="required">*</span></label>
+          <input type="date" name="start_date" id="start-date" required onchange="updateContractEnd()">
+        </div>
+        <div class="form-group" id="contract-end-group" style="display:none;">
+          <label>Tanggal Selesai Kontrak PKWT <span class="required">*</span></label>
+          <input type="date" name="contract_end_date">
+        </div>
+        <div class="form-group" id="hl-end-display" style="display:none;">
+          <label>Kontrak Berakhir (Otomatis 3 Bulan)</label>
+          <input type="text" id="hl-end-text" disabled style="background:var(--gray-100);color:var(--text-muted);">
+        </div>
+        <div class="form-group full" id="sponsor-group" style="display:none;">
+          <label>Nama Sponsor <span class="required">*</span></label>
+          <input type="text" name="sponsor_name" id="sponsor-name" placeholder="Nama sponsor yang merujuk karyawan ini">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 5: Emergency Contact -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><div class="card-title">5. Kontak Darurat / Emergency Contact</div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nama Kontak Darurat <span class="required">*</span></label>
+          <input type="text" name="emergency_contact" required placeholder="Nama lengkap kontak darurat">
+        </div>
+        <div class="form-group">
+          <label>Hubungan / Relationship <span class="required">*</span></label>
+          <select name="emergency_relationship" required>
+            <option value="">— Pilih —</option>
+            <option>Orang Tua / Parent</option>
+            <option>Suami / Husband</option>
+            <option>Istri / Wife</option>
+            <option>Anak / Child</option>
+            <option>Kakak / Older Sibling</option>
+            <option>Adik / Younger Sibling</option>
+            <option>Saudara / Relative</option>
+            <option>Teman / Friend</option>
+            <option>Lainnya / Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>No. HP Darurat <span class="required">*</span></label>
+          <input type="text" name="emergency_phone" required placeholder="08xx-xxxx-xxxx">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;justify-content:flex-end;">
+    <a href="{{ url_for('staff_list') }}" class="btn btn-outline">Batal</a>
+    <button type="submit" class="btn btn-primary">Simpan Karyawan</button>
+  </div>
+</form>
+</div>
+
+{% block scripts %}
+<script>
+const DEPTS = {{ departments|tojson }};
+
+let ktpTimer;
+function checkKTP(val){
+  clearTimeout(ktpTimer);
+  const status  = document.getElementById('ktp-status');
+  const warning = document.getElementById('ktp-warning');
+  if(val.length < 16){ status.innerHTML=''; warning.style.display='none'; return; }
+  ktpTimer = setTimeout(()=>{
+    fetch(`/api/check_ktp?ktp=${val}`)
+    .then(r=>r.json()).then(data=>{
+      if(data.found){
+        if(data.blacklisted){
+          status.innerHTML='<span style="color:var(--red)">⛔ BLACKLIST</span>';
+          warning.style.display='block';
+          warning.innerHTML=`<div class="alert alert-critical">⛔ <strong>STAFF INI DIBLACKLIST</strong> — ${data.blacklist_reason||'Alasan tidak tercatat'}. Hubungi HR Head.</div>`;
+        } else {
+          status.innerHTML='<span style="color:var(--orange)">⚠ Sudah terdaftar</span>';
+          warning.style.display='block';
+          warning.innerHTML=`<div class="alert alert-warning">⚠ KTP sudah terdaftar atas nama <strong>${data.name}</strong> (${data.emp_id}). <a href="/staff/${data.staff_id}" style="color:inherit;font-weight:600;">Lihat profil →</a></div>`;
+        }
+      } else {
+        status.innerHTML='<span style="color:var(--green)">✓ KTP tersedia</span>';
+        warning.style.display='none';
+      }
+    });
+  }, 500);
+}
+
+function updatePositions(dept){
+  const sel = document.getElementById('position-select');
+  sel.innerHTML='<option value="">— Pilih Jabatan —</option>';
+  (DEPTS[dept]||[]).forEach(p=>{
+    const o=document.createElement('option'); o.value=p; o.textContent=p; sel.appendChild(o);
+  });
+}
+
+function toggleStaffType(val){
+  document.getElementById('contract-end-group').style.display = val==='PKWT' ? 'block' : 'none';
+  document.getElementById('hl-end-display').style.display     = (val==='HL-Lamaran'||val==='HL-Outsource') ? 'block' : 'none';
+  document.getElementById('sponsor-group').style.display      = val==='HL-Outsource' ? 'block' : 'none';
+  const sn = document.getElementById('sponsor-name');
+  if(sn) sn.required = val==='HL-Outsource';
+  updateContractEnd();
+}
+
+function updateContractEnd(){
+  const start = document.getElementById('start-date').value;
+  const type  = document.getElementById('staff-type').value;
+  if(start && (type==='HL-Lamaran'||type==='HL-Outsource')){
+    const d=new Date(start); d.setDate(d.getDate()+90);
+    document.getElementById('hl-end-text').value=d.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
+  }
+}
+</script>
+{% endblock %}
+{% endblock %}
