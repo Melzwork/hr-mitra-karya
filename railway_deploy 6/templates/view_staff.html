@@ -1,0 +1,569 @@
+{% extends "base.html" %}
+{% block title %}{{ staff.full_name }}{% endblock %}
+{% block page_title %}{{ staff.full_name }}{% endblock %}
+{% block topbar_actions %}
+<a href="{{ url_for('staff_list') }}" class="btn btn-outline btn-sm">← Kembali</a>
+{% if is_head_or_owner %}
+<a href="{{ url_for('edit_staff', staff_id=staff.id) }}" class="btn btn-outline btn-sm">✏ Edit Data</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- Profile Header -->
+<div class="profile-header">
+  <div class="profile-avatar">{{ staff.full_name[0] }}</div>
+  <div class="profile-main">
+    <div class="profile-name">{{ staff.full_name }}</div>
+    <div class="profile-meta">
+      <span class="profile-id">{{ staff.emp_id }}</span>
+      <span class="profile-dept">{{ staff.department }} — {{ staff.position }}</span>
+      {% if active_period %}<span class="badge badge-{{ 'pkwt' if active_period.staff_type=='PKWT' else 'hl' }}">{{ active_period.staff_type }}</span>{% endif %}
+      <span class="badge badge-{{ 'aktif' if staff.status=='AKTIF' else 'inactive' }}">{{ staff.status }}</span>
+      {% if staff.is_blacklisted %}<span class="badge badge-blacklist">⛔ BLACKLIST</span>{% endif %}
+    </div>
+    {% if active_period and days_left is not none %}
+    <div class="expiry-bar expiry-{{ 'expired' if days_left<0 else 'danger' if days_left<=7 else 'warn' if days_left<=30 else 'ok' }}">
+      {% if days_left<0 %}⛔ Kontrak SUDAH HABIS sejak {{ active_period.contract_end_date }}
+      {% elif days_left<=7 %}🔴 Kontrak habis dalam {{ days_left }} hari ({{ active_period.contract_end_date }})
+      {% elif days_left<=30 %}🟡 Kontrak habis dalam {{ days_left }} hari ({{ active_period.contract_end_date }})
+      {% else %}✓ Kontrak aktif — berakhir {{ active_period.contract_end_date }} ({{ days_left }} hari lagi){% endif %}
+    </div>
+    {% endif %}
+    {% if pkwt_years >= 2 and is_head_or_owner %}
+    <div class="expiry-bar expiry-{{ 'expired' if pkwt_years>=3 else 'danger' }}">
+      {{ '⚠ MELEBIHI batas maksimal 3 tahun PKWT' if pkwt_years>=3 else '📋 Sudah 2 tahun PKWT' }} ({{ pkwt_total_days }} hari) —
+      {{ 'Segera proses keluar.' if pkwt_years>=3 else 'Wajib resign, tunggu 3 hari, lalu daftar ulang NIP baru.' }}
+    </div>
+    {% endif %}
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex-shrink:0;">
+    {% if staff.status=='AKTIF' and active_period %}
+      <button onclick="openModal('modal-discipline')" class="btn btn-outline btn-sm">+ Catatan Disiplin</button>
+      <button onclick="openModal('modal-doc')" class="btn btn-outline btn-sm">+ Dokumen</button>
+      {% if is_head_or_owner %}
+      <button onclick="openModal('modal-renew')" class="btn btn-accent btn-sm">Evaluasi / Perpanjang</button>
+      {% endif %}
+      <button onclick="openModal('modal-exit')" class="btn btn-danger btn-sm">Proses Keluar</button>
+    {% elif staff.status=='TIDAK_AKTIF' and is_head_or_owner %}
+      <button onclick="openModal('modal-return')" class="btn btn-primary btn-sm">Kembali Bekerja</button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab('info')">Data Pribadi</button>
+  <button class="tab-btn" onclick="showTab('employment')">Riwayat Kerja ({{ periods|length }})</button>
+  <button class="tab-btn" onclick="showTab('discipline')">
+    Catatan Disiplin {% if discipline %}<span class="badge badge-sp2" style="margin-left:4px;font-size:10px;">{{ discipline|length }}</span>{% endif %}
+  </button>
+  <button class="tab-btn" onclick="showTab('documents')">Dokumen ({{ documents|length }})</button>
+</div>
+
+<!-- Tab: Data Pribadi -->
+<div id="tab-info" class="tab-content active">
+  <div class="card">
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        {% macro row(label, value) %}
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:3px;">{{ label }}</div>
+          <div style="font-size:13px;color:var(--text);">{{ value or '—' }}</div>
+        </div>
+        {% endmacro %}
+        {{ row('No. KTP', staff.ktp_number) }}
+        {{ row('Tanggal Lahir', staff.birth_date) }}
+        {{ row('Jenis Kelamin', staff.gender) }}
+        {{ row('Agama', staff.religion) }}
+        {{ row('Pendidikan', staff.education) }}
+        {{ row('No. HP', staff.phone) }}
+        {{ row('Departemen', staff.department) }}
+        {{ row('Jabatan', staff.position) }}
+        {% if active_period and active_period.staff_type=='HL-Outsource' %}
+        {{ row('Sponsor', active_period.sponsor_name) }}
+        {% endif %}
+        <div style="grid-column:1/-1;border-top:1px solid var(--gray-200);padding-top:12px;margin-top:4px;">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:6px;">Alamat</div>
+          <div style="font-size:13px;">{{ staff.address }}, RT/RW {{ staff.rt_rw }}, Kel. {{ staff.kelurahan }}, Kec. {{ staff.kecamatan }}, {{ staff.kota }}, {{ staff.provinsi }}</div>
+        </div>
+        <div style="grid-column:1/-1;border-top:1px solid var(--gray-200);padding-top:12px;margin-top:4px;">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:8px;">Kontak Darurat</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+            {{ row('Nama', staff.emergency_contact) }}
+            {{ row('Hubungan', staff.emergency_relationship) }}
+            {{ row('No. HP', staff.emergency_phone) }}
+          </div>
+        </div>
+        <div style="grid-column:1/-1;border-top:1px solid var(--gray-200);padding-top:12px;margin-top:4px;">
+          {{ row('Ditambahkan oleh', staff.created_by ~ ' · ' ~ staff.created_at[:16]) }}
+          {% if staff.updated_by %}{{ row('Diubah oleh', staff.updated_by ~ ' · ' ~ staff.updated_at[:16]) }}{% endif %}
+          {% if staff.is_blacklisted %}{{ row('Alasan Blacklist', staff.blacklist_reason) }}{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Riwayat Kerja -->
+<div id="tab-employment" class="tab-content">
+  {% for p in periods %}
+  <div class="period-item period-{{ p.status|lower }}">
+    <div class="period-header">
+      <div>
+        <div class="period-title">Periode {{ p.period_number }} — {{ p.staff_type }}
+          {% if p.sponsor_name %}<span style="font-size:11px;color:var(--text-muted);font-weight:400;"> (Sponsor: {{ p.sponsor_name }})</span>{% endif %}
+        </div>
+        <div class="period-dates">{{ p.start_date }} → {{ p.end_date or 'Sekarang' }}
+          {% if p.contract_end_date %} | Kontrak: {{ p.contract_end_date }}{% endif %}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <span class="badge badge-{{ 'aktif' if p.status=='AKTIF' else 'inactive' }}">{{ p.status }}</span>
+        {% if p.evaluation_result %}<span class="badge badge-hl">{{ p.evaluation_result }}</span>{% endif %}
+        {% if p.bpjs_enrolled %}<span class="badge badge-aktif">BPJS ✓</span>{% endif %}
+      </div>
+    </div>
+    {% if p.end_reason %}<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Alasan: {{ p.end_reason }}</div>{% endif %}
+    {% if is_head_or_owner %}
+      {% if p.evaluation_notes %}<div style="font-size:12px;color:var(--text-soft);margin-top:6px;padding:6px 10px;background:var(--gray-100);border-radius:6px;">📝 {{ p.evaluation_notes }}</div>{% endif %}
+      {% if p.salary_increase %}<div style="font-size:12px;color:var(--green);margin-top:4px;">💰 {{ p.salary_increase }}</div>{% endif %}
+    {% endif %}
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:30px;color:var(--text-muted);">Belum ada riwayat kerja</div>
+  {% endfor %}
+</div>
+
+<!-- Tab: Catatan Disiplin -->
+<div id="tab-discipline" class="tab-content">
+  {% set curr_pid = active_period.id if active_period else None %}
+  {% if discipline %}
+    {% set curr_disc = discipline|selectattr('period_id','equalto',curr_pid)|list if curr_pid else [] %}
+    {% set hist_disc = discipline|rejectattr('period_id','equalto',curr_pid)|list if curr_pid else discipline %}
+    {% if curr_disc %}
+    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Periode Aktif</div>
+    <div class="card" style="margin-bottom:16px;"><div style="padding:0 20px;">
+    {% for d in curr_disc %}
+    <div class="sp-item">
+      <div class="sp-badge-col"><span class="badge badge-{{ 'sp3' if 'SP3' in d.sp_type else 'sp2' if 'SP2' in d.sp_type else 'sp1' if 'SP1' in d.sp_type else 'tgr' }}">{{ d.doc_code }}</span></div>
+      <div class="sp-body">
+        <div class="sp-title">{{ d.sp_type }}</div>
+        <div class="sp-meta">{{ d.incident_date }} · {{ d.created_by }}</div>
+        <div class="sp-desc">{{ d.description }}</div>
+        <div class="sp-ref">Ref: {{ d.doc_ref }}</div>
+        {% if d.drive_path %}
+        <div style="font-size:11px;color:var(--green);margin-top:4px;">✓ <a href="{{ d.drive_path }}" target="_blank" style="color:var(--green);font-weight:500;">Buka Google Drive ↗</a></div>
+        {% endif %}
+        {% if d.physical_location %}
+        <div style="font-size:11px;color:var(--gray-400);margin-top:3px;">📁 {{ d.physical_location }}</div>
+        {% endif %}
+        {% if not d.drive_path or not d.physical_location or is_head_or_owner %}
+        <button onclick="openUpdateModal('disc',{{ d.id }},'{{ d.doc_ref }}',{{ 'true' if d.drive_path else 'false' }},{{ 'true' if d.physical_location else 'false' }})" class="btn btn-outline btn-sm" style="font-size:11px;margin-top:6px;">{{ '✏ Edit Lokasi' if is_head_or_owner and d.drive_path and d.physical_location else '+ Isi Lokasi Dokumen' }}</button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    </div></div>
+    {% endif %}
+    {% if hist_disc %}
+    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Riwayat Periode Sebelumnya</div>
+    <div class="card"><div style="padding:0 20px;opacity:.7;">
+    {% for d in hist_disc %}
+    <div class="sp-item">
+      <div class="sp-badge-col"><span class="badge badge-sp1">{{ d.doc_code }}</span></div>
+      <div class="sp-body">
+        <div class="sp-title">{{ d.sp_type }} <span style="font-size:11px;color:var(--text-muted);">(Periode {{ d.period_number }})</span></div>
+        <div class="sp-meta">{{ d.incident_date }}</div>
+        <div class="sp-desc">{{ d.description }}</div>
+        <div class="sp-ref">Ref: {{ d.doc_ref }}</div>
+      </div>
+    </div>
+    {% endfor %}
+    </div></div>
+    {% endif %}
+  {% else %}
+  <div style="text-align:center;padding:30px;color:var(--text-muted);">Tidak ada catatan disiplin</div>
+  {% endif %}
+</div>
+
+<!-- Tab: Dokumen -->
+<div id="tab-documents" class="tab-content">
+  {% if documents %}
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Referensi</th><th>Jenis</th><th>Alasan / Keterangan</th><th>Google Drive</th><th>Lokasi Fisik</th><th>Tanggal</th><th></th></tr></thead>
+        <tbody>
+        {% for doc in documents %}
+        <tr>
+          <td><span class="emp-id">{{ doc.doc_ref }}</span></td>
+          <td><span class="badge badge-hl" style="font-size:10px;">{{ doc.doc_code }}</span></td>
+          <td style="font-size:12px;color:var(--text-muted);max-width:160px;">{{ doc.reason or doc.description or '—' }}</td>
+          <td style="font-size:12px;">
+            {% if doc.drive_path %}
+            <a href="{{ doc.drive_path }}" target="_blank" style="color:var(--green);font-weight:500;text-decoration:none;">✓ Buka Drive ↗</a>
+            {% elif doc.need_drive %}
+            <span style="color:var(--orange);">Belum diisi</span>
+            {% else %}
+            <span style="color:var(--gray-400);">Tidak diperlukan</span>
+            {% endif %}
+          </td>
+          <td style="font-size:12px;color:var(--text-muted);">{{ doc.physical_location or '—' }}</td>
+          <td style="font-size:11px;color:var(--text-muted);">{{ doc.created_at | string | truncate(10, True, '') }}</td>
+          <td>
+          {% if (doc.need_drive and not doc.drive_path) or not doc.physical_location or is_head_or_owner %}
+            <button onclick="openUpdateModal('doc',{{ doc.id }},'{{ doc.doc_ref }}',{{ 'true' if doc.drive_path else 'false' }},{{ 'true' if doc.physical_location else 'false' }})" class="btn btn-outline btn-xs">{{ '✏ Edit' if is_head_or_owner and doc.drive_path and doc.physical_location else '+ Isi' }}</button>
+          {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:30px;color:var(--text-muted);">Belum ada dokumen</div>
+  {% endif %}
+</div>
+
+<!-- ══════════════ MODALS ══════════════ -->
+
+<!-- Modal: Add Discipline -->
+<div class="modal-overlay" id="modal-discipline">
+  <div class="modal">
+    <div class="modal-title">Tambah Catatan Disiplin</div>
+    <form method="POST" action="{{ url_for('add_discipline', staff_id=staff.id) }}">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Jenis Surat <span class="required">*</span></label>
+        <select name="sp_type" required>
+          {% for dtype in discipline_types.keys() %}
+          <option value="{{ dtype }}">{{ dtype }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Tanggal Kejadian <span class="required">*</span></label>
+        <input type="date" name="incident_date" required>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Deskripsi / Alasan <span class="required">*</span></label>
+        <textarea name="description" required rows="3" placeholder="Jelaskan pelanggaran atau kejadian..."></textarea>
+      </div>
+      <div class="alert alert-info" style="font-size:12px;margin-bottom:14px;">
+        ℹ Nomor referensi dibuat otomatis setelah disimpan. Tulis nomor tersebut pada surat fisik.
+      </div>
+      <div class="modal-actions">
+        <button type="button" onclick="closeModal('modal-discipline')" class="btn btn-outline">Batal</button>
+        <button type="submit" class="btn btn-danger">Simpan & Buat Referensi</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Add Document -->
+<div class="modal-overlay" id="modal-doc">
+  <div class="modal" style="width:540px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-title">
+      Tambah Dokumen
+      <button onclick="toggleLegend()" style="float:right;background:none;border:1px solid var(--gray-300);border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:12px;color:var(--text-muted);">?</button>
+    </div>
+    <div id="doc-legend" style="display:none;background:var(--gray-100);border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;">
+      <div style="font-weight:600;margin-bottom:8px;">Keterangan Jenis Dokumen:</div>
+      {% for dtype, info in doc_types.items() %}
+      <div style="margin-bottom:4px;"><span style="font-family:var(--mono);color:var(--navy-mid);font-weight:500;">{{ info.code }}</span> — {{ info.desc }}</div>
+      {% endfor %}
+    </div>
+    <form method="POST" action="{{ url_for('add_doc', staff_id=staff.id) }}">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Jenis Dokumen <span class="required">*</span></label>
+        <select name="doc_type" id="doc-type-select" required onchange="updateDocForm(this.value)">
+          <option value="">— Pilih —</option>
+          {% for dtype in doc_types.keys() %}
+          <option value="{{ dtype }}">{{ dtype }}</option>
+          {% endfor %}
+        </select>
+        <div id="doc-desc" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div>
+      </div>
+      <!-- DP Checklist -->
+      <div id="dp-checklist-group" style="display:none;margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:var(--text-soft);margin-bottom:8px;display:block;">Dokumen yang diterima:</label>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          {% for item in dp_checklist %}
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" name="dp_items" value="{{ item.key }}" style="width:15px;height:15px;accent-color:var(--navy);">
+            {{ item.label }}
+            {% if item.optional %}<span style="font-size:10px;color:var(--gray-400);font-style:italic;">(Opsional)</span>{% endif %}
+          </label>
+          {% endfor %}
+          <div style="margin-top:6px;">
+            <label style="font-size:12px;color:var(--text-soft);font-weight:600;display:block;margin-bottom:4px;">Lainnya:</label>
+            <input type="text" name="dp_others" placeholder="Dokumen lain yang diterima..." style="width:100%;">
+          </div>
+        </div>
+      </div>
+      <div class="form-group" id="reason-group" style="display:none;margin-bottom:14px;">
+        <label>Alasan <span class="required">*</span></label>
+        <textarea name="reason" id="reason-field" rows="2" placeholder="Jelaskan alasan..."></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Keterangan Tambahan</label>
+        <input type="text" name="description" placeholder="Keterangan singkat (opsional)">
+      </div>
+      <div class="form-group" id="drive-group" style="margin-bottom:14px;">
+        <label>Link Google Drive <span style="font-size:11px;color:var(--text-muted);">(isi setelah upload — terkunci setelah disimpan)</span></label>
+        <input type="text" name="drive_path" placeholder="https://drive.google.com/...">
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Lokasi Fisik</label>
+        <input type="text" name="physical_location" placeholder="Contoh: Laci A, Map EMP001">
+      </div>
+      <div class="alert alert-info" style="font-size:12px;margin-bottom:14px;">
+        ℹ Nomor referensi dibuat otomatis. Gunakan sebagai nama file di Google Drive dan tulis pada dokumen fisik.
+      </div>
+      <div class="modal-actions">
+        <button type="button" onclick="closeModal('modal-doc')" class="btn btn-outline">Batal</button>
+        <button type="submit" class="btn btn-primary">Simpan & Buat Referensi</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Update Location -->
+<div class="modal-overlay" id="modal-update-path">
+  <div class="modal">
+    <div class="modal-title">Isi Lokasi — <span id="update-ref" style="font-family:var(--mono);color:var(--navy-mid);font-size:13px;"></span></div>
+    <form method="POST" id="update-path-form">
+      <div id="drive-update-group" style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:var(--text-soft);display:block;margin-bottom:5px;">Link Google Drive</label>
+        <input type="text" name="drive_path" id="drive-path-input" placeholder="https://drive.google.com/..." style="width:100%;padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;font-family:inherit;">
+        <div id="drive-locked-msg" style="display:none;font-size:11px;color:var(--orange);margin-top:3px;">🔒 Link Drive sudah diisi dan terkunci. Hubungi HR Head untuk mengubah.</div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Lokasi Fisik (Laci/Map)</label>
+        <input type="text" name="physical_location" id="phys-input" placeholder="Contoh: Jakarta 10/03/26 atau Serang" style="width:100%;padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;font-family:inherit;">
+        <div id="phys-locked-msg" style="display:none;font-size:11px;color:var(--orange);margin-top:3px;">🔒 Lokasi fisik sudah diisi. Hubungi HR Head untuk mengubah.</div>
+      </div>
+      <div style="background:var(--gray-100);border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;">
+        <div style="font-weight:600;margin-bottom:5px;">Cara penyimpanan fisik:</div>
+        <div>1. Tulis nomor referensi di pojok dokumen fisik</div>
+        <div>2. Masukkan ke map berlabel ID karyawan</div>
+        <div>3. Simpan di laci sesuai status (AKTIF / TIDAK AKTIF)</div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" onclick="closeModal('modal-update-path')" class="btn btn-outline">Batal</button>
+        <button type="submit" class="btn btn-primary">Simpan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Evaluasi (HR Head + Owner only) -->
+{% if is_head_or_owner %}
+<div class="modal-overlay" id="modal-renew">
+  <div class="modal" style="width:520px;">
+    <div class="modal-title">Evaluasi & Perpanjang Kontrak</div>
+    <form method="POST" action="{{ url_for('renew_contract', staff_id=staff.id) }}">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Hasil Evaluasi <span class="required">*</span></label>
+        <select name="evaluation_result" id="eval-result" required onchange="togglePKWT(this.value)">
+          <option value="Tetap HL">Tetap HL — perpanjang 3 bulan</option>
+          <option value="Naik PKWT">Naik PKWT</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Catatan Evaluasi <span class="required">*</span></label>
+        <textarea name="evaluation_notes" required rows="3" placeholder="Tuliskan catatan evaluasi secara detail..."></textarea>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Hanya terlihat oleh HR Head & Owner</div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Kenaikan Gaji</label>
+        <input type="text" name="salary_increase" placeholder="Contoh: Naik Rp 200.000/bulan — kosongkan jika tidak ada">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Hanya terlihat oleh HR Head & Owner</div>
+      </div>
+      {% if bpjs_eligible %}
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Daftarkan BPJS?</label>
+        <select name="bpjs_enrolled">
+          <option value="no">Tidak</option>
+          <option value="yes">Ya — daftarkan BPJS</option>
+        </select>
+        <div style="font-size:11px;color:var(--green);margin-top:3px;">✓ Staff sudah bekerja ≥ 1 tahun — eligible untuk BPJS</div>
+      </div>
+      {% else %}
+      <div class="alert alert-info" style="font-size:12px;margin-bottom:14px;">ℹ BPJS belum tersedia — staff belum mencapai 1 tahun kerja</div>
+      {% endif %}
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Tanggal Mulai Periode Baru <span class="required">*</span></label>
+        <input type="date" name="new_start_date" required>
+      </div>
+      <div class="form-group" id="pkwt-end-group" style="display:none;margin-bottom:14px;">
+        <label>Tanggal Selesai Kontrak PKWT <span class="required">*</span></label>
+        <input type="date" name="new_contract_end">
+      </div>
+      <div class="modal-actions">
+        <button type="button" onclick="closeModal('modal-renew')" class="btn btn-outline">Batal</button>
+        <button type="submit" class="btn btn-primary">Simpan Keputusan</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<!-- Modal: Proses Keluar -->
+<div class="modal-overlay" id="modal-exit">
+  <div class="modal" style="width:520px;">
+    <div class="modal-title">Proses Keluar Karyawan</div>
+    <form method="POST" action="{{ url_for('exit_staff', staff_id=staff.id) }}">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Tanggal Terakhir Kerja <span class="required">*</span></label>
+        <input type="date" name="end_date" required>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Alasan Keluar <span class="required">*</span></label>
+        <select name="end_reason" required onchange="updateExitDocs(this.value)">
+          <option value="">— Pilih —</option>
+          {% for reason in exit_reasons.keys() %}
+          <option value="{{ reason }}">{{ reason }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div id="exit-doc-checklist" style="display:none;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:600;color:var(--text-soft);margin-bottom:8px;">Dokumen yang harus dilengkapi:</div>
+        <div id="exit-doc-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Blacklist?</label>
+        <select name="blacklist" id="bl-sel" onchange="toggleBL(this.value)">
+          <option value="no">Tidak</option>
+          <option value="yes">Ya — Blacklist</option>
+        </select>
+      </div>
+      <div class="form-group" id="bl-reason" style="display:none;margin-bottom:14px;">
+        <label>Alasan Blacklist <span class="required">*</span></label>
+        <textarea name="blacklist_reason" rows="2" placeholder="Jelaskan alasan blacklist..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" onclick="closeModal('modal-exit')" class="btn btn-outline">Batal</button>
+        <button type="submit" class="btn btn-danger">Proses Keluar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Kembali Bekerja -->
+{% if staff.status=='TIDAK_AKTIF' and is_head_or_owner %}
+<div class="modal-overlay" id="modal-return">
+  <div class="modal">
+    <div class="modal-title">Karyawan Kembali Bekerja</div>
+    {% if staff.is_blacklisted and not is_owner %}
+    <div class="alert alert-critical">⛔ Staff ini diblacklist. Hanya Owner yang bisa memproses.</div>
+    <div class="modal-actions"><button onclick="closeModal('modal-return')" class="btn btn-outline">Tutup</button></div>
+    {% else %}
+    <div class="alert alert-info" style="margin-bottom:14px;">ℹ Riwayat kerja sebelumnya tetap tersimpan. Periode baru akan ditambahkan.</div>
+    <form method="POST" action="{{ url_for('return_to_work', staff_id=staff.id) }}">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Tipe Kontrak Baru <span class="required">*</span></label>
+        <select name="staff_type" required>
+          <option value="HL-Lamaran">HL-Lamaran</option>
+          <option value="HL-Outsource">HL-Outsource</option>
+          <option value="PKWT">PKWT</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Tanggal Mulai <span class="required">*</span></label>
+        <input type="date" name="start_date" required>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Nama Sponsor (jika HL-Outsource)</label>
+        <input type="text" name="sponsor_name" placeholder="Kosongkan jika bukan HL-Outsource">
+      </div>
+      <div class="modal-actions">
+        <button type="button" onclick="closeModal('modal-return')" class="btn btn-outline">Batal</button>
+        <button type="submit" class="btn btn-primary">Proses Kembali Bekerja</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% block scripts %}
+<script>
+const DOC_TYPES_INFO  = {{ doc_types|tojson }};
+const EXIT_REASONS_INFO = {{ exit_reasons|tojson }};
+const HAVE_CODES = {{ have_codes|tojson }};
+const IS_HEAD_OR_OWNER = {{ 'true' if is_head_or_owner else 'false' }};
+
+function toggleLegend(){
+  const l=document.getElementById('doc-legend');
+  l.style.display=l.style.display==='none'?'block':'none';
+}
+
+function updateDocForm(val){
+  const info=DOC_TYPES_INFO[val]||{};
+  document.getElementById('doc-desc').textContent=info.desc||'';
+  const rg=document.getElementById('reason-group');
+  const rf=document.getElementById('reason-field');
+  const dg=document.getElementById('drive-group');
+  const dp=document.getElementById('dp-checklist-group');
+  rg.style.display=info.need_reason?'block':'none';
+  if(rf) rf.required=!!info.need_reason;
+  dg.style.display=(info.need_drive===false)?'none':'block';
+  dp.style.display=(info.code==='DP')?'block':'none';
+}
+
+function togglePKWT(val){
+  document.getElementById('pkwt-end-group').style.display=val==='Naik PKWT'?'block':'none';
+}
+
+function toggleBL(val){
+  document.getElementById('bl-reason').style.display=val==='yes'?'block':'none';
+}
+
+function updateExitDocs(reason){
+  const container=document.getElementById('exit-doc-checklist');
+  const list=document.getElementById('exit-doc-list');
+  const info=EXIT_REASONS_INFO[reason];
+  if(!info||!info.docs){container.style.display='none';return;}
+  container.style.display='block';
+  list.innerHTML='';
+  info.docs.forEach(code=>{
+    const have=HAVE_CODES.includes(code);
+    const div=document.createElement('div');
+    div.style.cssText=`display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;background:${have?'#DCFCE7':'#FEE2E2'};`;
+    div.innerHTML=`<span>${have?'✓':'✗'}</span><span style="font-family:monospace;font-weight:600;color:${have?'#166534':'#991B1B'};font-size:12px;">${code}</span><span style="font-size:12px;color:${have?'#166534':'#991B1B'};">${have?'Sudah ada':'Belum ada — perlu dilengkapi'}</span>`;
+    list.appendChild(div);
+  });
+}
+
+function openUpdateModal(type, id, ref, hasDrive, hasPhys){
+  document.getElementById('update-ref').textContent=ref;
+  const form=document.getElementById('update-path-form');
+  form.action=(type==='disc'?`/discipline/${id}/update`:`/document/${id}/update`);
+  // Drive field
+  const driveInput=document.getElementById('drive-path-input');
+  const driveMsg=document.getElementById('drive-locked-msg');
+  if(hasDrive && !IS_HEAD_OR_OWNER){
+    driveInput.disabled=true; driveInput.style.background='var(--gray-100)';
+    driveMsg.style.display='block';
+  } else {
+    driveInput.disabled=false; driveInput.style.background='';
+    driveMsg.style.display='none';
+  }
+  driveInput.value='';
+  // Physical field
+  const physInput=document.getElementById('phys-input');
+  const physMsg=document.getElementById('phys-locked-msg');
+  if(hasPhys && !IS_HEAD_OR_OWNER){
+    physInput.disabled=true; physInput.style.background='var(--gray-100)';
+    physMsg.style.display='block';
+  } else {
+    physInput.disabled=false; physInput.style.background='';
+    physMsg.style.display='none';
+  }
+  physInput.value='';
+  openModal('modal-update-path');
+}
+</script>
+{% endblock %}
+{% endblock %}

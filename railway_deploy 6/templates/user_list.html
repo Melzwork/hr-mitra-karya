@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Kelola User{% endblock %}
+{% block page_title %}Kelola User{% endblock %}
+{% block topbar_actions %}
+<a href="{{ url_for('add_user') }}" class="btn btn-primary btn-sm">+ Tambah User</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header"><div class="card-title">{{ users|length }} user terdaftar</div></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Username</th><th>Nama</th><th>Role</th><th>Dibuat</th><th>Aksi</th></tr></thead>
+      <tbody>
+      {% for u in users %}
+      <tr>
+        <td style="font-family:var(--mono);font-weight:500;">{{ u.username }}</td>
+        <td>{{ u.full_name }}</td>
+        <td>
+          <span class="badge badge-{{ 'sp3' if u.role=='owner' else 'pkwt' if u.role=='hr_head' else 'hl' }}">
+            {{ 'Owner/Admin' if u.role=='owner' else 'HR Head' if u.role=='hr_head' else 'HR Staff' }}
+          </span>
+        </td>
+        <td style="font-size:12px;color:var(--text-muted);">{{ u.created_at | string | truncate(10, True, '') }}</td>
+        <td style="display:flex;gap:6px;">
+          <button onclick="openResetModal({{ u.id }}, '{{ u.username }}')" class="btn btn-outline btn-sm">Reset Password</button>
+          {% if u.username != session.user %}
+          <button onclick="confirmDelete({{ u.id }}, '{{ u.username }}')" class="btn btn-danger btn-sm">Hapus</button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: Reset Password -->
+<div class="modal-overlay" id="modal-reset">
+  <div class="modal">
+    <div class="modal-title">Reset Password — <span id="reset-username" style="font-family:var(--mono);color:var(--navy-mid);"></span></div>
+    <form method="POST" id="reset-form">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Password Baru <span class="required">*</span></label>
+        <input type="password" name="new_password" required minlength="6" placeholder="Minimal 6 karakter">
+      </div>
+      <div class="modal-actions">
+        <button type="button" onclick="closeModal('modal-reset')" class="btn btn-outline">Batal</button>
+        <button type="submit" class="btn btn-danger">Reset Password</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Confirm Delete -->
+<div class="modal-overlay" id="modal-delete">
+  <div class="modal">
+    <div class="modal-title">Hapus User</div>
+    <p style="font-size:13px;margin-bottom:16px;">Yakin ingin menghapus user <strong id="delete-username"></strong>? Tindakan ini tidak bisa dibatalkan.</p>
+    <form method="POST" id="delete-form">
+      <div class="modal-actions">
+        <button type="button" onclick="closeModal('modal-delete')" class="btn btn-outline">Batal</button>
+        <button type="submit" class="btn btn-danger">Ya, Hapus</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% block scripts %}
+<script>
+function openResetModal(id, username){
+  document.getElementById('reset-username').textContent = username;
+  document.getElementById('reset-form').action = '/users/'+id+'/reset_password';
+  openModal('modal-reset');
+}
+function confirmDelete(id, username){
+  document.getElementById('delete-username').textContent = username;
+  document.getElementById('delete-form').action = '/users/'+id+'/delete';
+  openModal('modal-delete');
+}
+</script>
+{% endblock %}
+{% endblock %}

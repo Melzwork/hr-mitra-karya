@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Edit — {{ staff.full_name }}{% endblock %}
+{% block page_title %}Edit Data: {{ staff.full_name }}{% endblock %}
+
+{% block content %}
+<div style="max-width:760px;">
+<form method="POST">
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><div class="card-title">Data Pribadi</div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Nama Lengkap <span class="required">*</span></label>
+          <input type="text" name="full_name" required value="{{ staff.full_name }}">
+        </div>
+        <div class="form-group">
+          <label>Tanggal Lahir <span class="required">*</span></label>
+          <input type="date" name="birth_date" required value="{{ staff.birth_date }}">
+        </div>
+        <div class="form-group">
+          <label>Jenis Kelamin <span class="required">*</span></label>
+          <select name="gender" required>
+            <option value="Laki-laki" {{ 'selected' if staff.gender=='Laki-laki' }}>Laki-laki</option>
+            <option value="Perempuan" {{ 'selected' if staff.gender=='Perempuan' }}>Perempuan</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Agama <span class="required">*</span></label>
+          <select name="religion" required>
+            {% for r in religions %}
+            <option value="{{ r }}" {{ 'selected' if staff.religion==r }}>{{ r }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Pendidikan Terakhir <span class="required">*</span></label>
+          <select name="education" required>
+            {% for e in ['SD','SMP','SMA/SMK','D3','S1','S2','Lainnya'] %}
+            <option {{ 'selected' if staff.education==e }}>{{ e }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>No. HP <span class="required">*</span></label>
+          <input type="text" name="phone" required value="{{ staff.phone }}">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><div class="card-title">Alamat</div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Alamat (Jalan & No. Rumah) <span class="required">*</span></label>
+          <textarea name="address" required rows="2">{{ staff.address }}</textarea>
+        </div>
+        <div class="form-group">
+          <label>RT / RW <span class="required">*</span></label>
+          <input type="text" name="rt_rw" required value="{{ staff.rt_rw }}">
+        </div>
+        <div class="form-group">
+          <label>Kelurahan / Desa <span class="required">*</span></label>
+          <input type="text" name="kelurahan" required value="{{ staff.kelurahan }}">
+        </div>
+        <div class="form-group">
+          <label>Kecamatan <span class="required">*</span></label>
+          <input type="text" name="kecamatan" required value="{{ staff.kecamatan }}">
+        </div>
+        <div class="form-group">
+          <label>Kota / Kabupaten <span class="required">*</span></label>
+          <input type="text" name="kota" required value="{{ staff.kota }}">
+        </div>
+        <div class="form-group">
+          <label>Provinsi <span class="required">*</span></label>
+          <select name="provinsi" required>
+            {% for p in provinces %}
+            <option value="{{ p }}" {{ 'selected' if staff.provinsi==p }}>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><div class="card-title">Data Kerja</div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Departemen <span class="required">*</span></label>
+          <select name="department" id="dept-select" required onchange="updatePositions(this.value)">
+            {% for dept in departments.keys() %}
+            <option value="{{ dept }}" {{ 'selected' if staff.department==dept }}>{{ dept }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Jabatan <span class="required">*</span></label>
+          <select name="position" id="position-select" required>
+            {% for pos in departments.get(staff.department, []) %}
+            <option value="{{ pos }}" {{ 'selected' if staff.position==pos }}>{{ pos }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><div class="card-title">Kontak Darurat</div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nama <span class="required">*</span></label>
+          <input type="text" name="emergency_contact" required value="{{ staff.emergency_contact }}">
+        </div>
+        <div class="form-group">
+          <label>Hubungan <span class="required">*</span></label>
+          <select name="emergency_relationship" required>
+            {% for r in ['Orang Tua / Parent','Suami / Husband','Istri / Wife','Anak / Child','Kakak / Older Sibling','Adik / Younger Sibling','Saudara / Relative','Teman / Friend','Lainnya / Other'] %}
+            <option {{ 'selected' if staff.emergency_relationship==r }}>{{ r }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>No. HP <span class="required">*</span></label>
+          <input type="text" name="emergency_phone" required value="{{ staff.emergency_phone }}">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;justify-content:flex-end;">
+    <a href="{{ url_for('view_staff', staff_id=staff.id) }}" class="btn btn-outline">Batal</a>
+    <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+  </div>
+</form>
+</div>
+
+{% block scripts %}
+<script>
+const DEPTS = {{ departments|tojson }};
+function updatePositions(dept){
+  const sel = document.getElementById('position-select');
+  const current = '{{ staff.position }}';
+  sel.innerHTML = '';
+  (DEPTS[dept]||[]).forEach(p=>{
+    const o = document.createElement('option');
+    o.value = p; o.textContent = p;
+    if(p===current) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+</script>
+{% endblock %}
+{% endblock %}

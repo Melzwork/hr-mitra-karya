@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Daftar Karyawan{% endblock %}
+{% block page_title %}Karyawan / Staff{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+  <form method="GET" style="display:flex;gap:8px;flex-wrap:wrap;">
+    <input type="text" name="q" value="{{ search }}" placeholder="Cari nama, ID, KTP..." style="width:220px;">
+    <select name="dept" style="width:160px;">
+      <option value="">Semua Departemen</option>
+      {% for d in depts %}<option value="{{ d }}" {{ 'selected' if dept==d }}>{{ d }}</option>{% endfor %}
+    </select>
+    <select name="status" style="width:140px;">
+      <option value="AKTIF" {{ 'selected' if status=='AKTIF' }}>Aktif</option>
+      <option value="TIDAK_AKTIF" {{ 'selected' if status=='TIDAK_AKTIF' }}>Tidak Aktif</option>
+      <option value="BLACKLIST" {{ 'selected' if status=='BLACKLIST' }}>Blacklist</option>
+      <option value="" {{ 'selected' if status=='' }}>Semua</option>
+    </select>
+    <button type="submit" class="btn btn-outline">Cari</button>
+    <a href="{{ url_for('staff_list') }}" class="btn btn-outline">Reset</a>
+  </form>
+  <a href="{{ url_for('add_staff') }}" class="btn btn-primary">+ Tambah Karyawan</a>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">{{ staff|length }} karyawan ditemukan</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>NIP</th><th>Nama</th><th>Departemen</th><th>Jabatan</th>
+          <th>Tipe</th><th>Kontrak Berakhir</th><th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for s in staff %}
+      <tr>
+        <td><span class="emp-id">{{ s.emp_id }}</span></td>
+        <td>
+          <a href="{{ url_for('view_staff', staff_id=s.id) }}" style="text-decoration:none;color:var(--text);font-weight:500;">{{ s.full_name }}</a>
+          {% if s.is_blacklisted %}<span class="badge badge-blacklist" style="margin-left:6px;">BLACKLIST</span>{% endif %}
+        </td>
+        <td style="font-size:12px;color:var(--text-muted);">{{ s.department or '—' }}</td>
+        <td style="font-size:12px;color:var(--text-muted);">{{ s.position or '—' }}</td>
+        <td>{% if s.staff_type %}<span class="badge badge-{{ 'pkwt' if s.staff_type=='PKWT' else 'hl' }}">{{ s.staff_type }}</span>{% else %}—{% endif %}</td>
+        <td style="font-family:var(--mono);font-size:12px;">{{ s.contract_end_date or '—' }}</td>
+        <td><a href="{{ url_for('view_staff', staff_id=s.id) }}" class="btn btn-outline btn-sm">Lihat</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">Tidak ada karyawan ditemukan</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
