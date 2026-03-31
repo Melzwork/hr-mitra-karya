@@ -964,12 +964,25 @@ def get_positions():
 def get_exit_docs():
     return jsonify(EXIT_REASONS.get(request.args.get('reason',''),{}).get('docs',[]))
 
-# Initialize DB when app starts (works for both gunicorn and direct run)
-with app.app_context():
+# Initialize DB only if tables don't exist yet (safe on redeploy)
+def safe_init_db():
+    try:
+        with get_db() as db:
+            # Check if users table already has data
+            count = db.fetchval("SELECT COUNT(*) FROM users")
+            if count and count > 0:
+                print("Database already initialized — skipping init_db()")
+                return
+    except:
+        pass  # Table doesn't exist yet — run init
     try:
         init_db()
+        print("Database initialized successfully")
     except Exception as e:
         print(f"Warning: init_db error: {e}")
+
+with app.app_context():
+    safe_init_db()
 
 if __name__ == '__main__':
     os.makedirs(os.path.join(os.path.dirname(__file__),'instance'),exist_ok=True)
