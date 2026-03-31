@@ -22,7 +22,7 @@ DEPARTMENTS_POSITIONS = {
     "Dyeing": ["Dyeing"],
     "Quality Control": ["Quality Control (QC)"],
     "Boiler": ["Boiler"],
-    "Umum": ["Proyek", "Bongkar Muat"],
+    "Umum": ["Proyek", "Bongkar Muat", "Umum"],
     "Staff": ["Staff Chemical", "Staff Batubara & Sparepart", "Staff Finishing 1",
               "Staff Finishing 2", "Staff Dyeing", "Staff Greige", "Staff Ekspedisi"],
     "LAB": ["LAB 1", "LAB 2", "LAB 3"],
@@ -30,6 +30,7 @@ DEPARTMENTS_POSITIONS = {
     "Gudang Obat": ["Gudang Obat"],
     "Personalia": ["Staff Personalia"],
     "Resepsionis": ["Resepsionis"],
+    "Pengawas": ["Pengawas Lapangan", "Kabag Dyeing", "Kabag Finishing"],
 }
 
 PROVINCES = [
@@ -365,11 +366,12 @@ def is_owner():         return session.get('role') == 'owner'
 
 def gen_emp_id():
     with get_db() as db:
-        row = db.fetchone("SELECT last_number FROM id_counter WHERE prefix='EMP'")
-        n = (row['last_number']+1) if row else 1
-        db.execute("INSERT OR REPLACE INTO id_counter (prefix,last_number) VALUES ('EMP',?)",(n,))
+        row = db.fetchone("SELECT last_number FROM id_counter WHERE prefix='NIP'")
+        n = (row['last_number']+1) if row else 26001
+        if n < 26001: n = 26001
+        db.execute("INSERT OR REPLACE INTO id_counter (prefix,last_number) VALUES ('NIP',?)",(n,))
         db.commit()
-    return f"EMP{n:03d}"
+    return str(n)
 
 def gen_doc_ref(emp_id, code):
     key = f"{emp_id}-{code}"
