@@ -240,7 +240,7 @@ def init_db():
             created_by VARCHAR(100), created_at TIMESTAMP DEFAULT NOW())""")
         cur.execute("""
         CREATE TABLE IF NOT EXISTS audit_log (
-            id SERIAL PRIMARY KEY, user VARCHAR(100) NOT NULL,
+            id SERIAL PRIMARY KEY, username VARCHAR(100) NOT NULL,
             role VARCHAR(50), action VARCHAR(100) NOT NULL,
             table_name VARCHAR(50), record_id INTEGER, details TEXT,
             created_at TIMESTAMP DEFAULT NOW())""")
@@ -314,7 +314,7 @@ def init_db():
                 created_at TEXT DEFAULT (datetime('now','localtime')));
             CREATE TABLE IF NOT EXISTS audit_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user TEXT NOT NULL, role TEXT, action TEXT NOT NULL,
+                username TEXT NOT NULL, role TEXT, action TEXT NOT NULL,
                 table_name TEXT, record_id INTEGER, details TEXT,
                 created_at TEXT DEFAULT (datetime('now','localtime')));
             CREATE TABLE IF NOT EXISTS id_counter (
@@ -384,7 +384,7 @@ def gen_doc_ref(emp_id, code):
 
 def log_audit(action, table=None, record_id=None, details=None):
     with get_db() as db:
-        db.execute("INSERT INTO audit_log (user,role,action,table_name,record_id,details) VALUES (?,?,?,?,?,?)",
+        db.execute("INSERT INTO audit_log (username,role,action,table_name,record_id,details) VALUES (?,?,?,?,?,?)",
                   (session.get('user','?'),session.get('role','?'),action,table,record_id,details))
         db.commit()
 
