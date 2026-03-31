@@ -17,6 +17,13 @@ else:
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'hr_mitra_karya_2026_secret')
 
+# Custom Jinja2 filter: format date safely for both SQLite (string) and PostgreSQL (datetime)
+@app.template_filter('datestr')
+def datestr_filter(value):
+    if value is None: return '—'
+    if hasattr(value, 'strftime'): return value.strftime('%Y-%m-%d')
+    return str(value)[:10]
+
 DEPARTMENTS_POSITIONS = {
     "Finishing": ["Padder Dryer", "Centrifugal & Scutcher", "Calendar & Compactor", "Setting"],
     "Dyeing": ["Dyeing"],

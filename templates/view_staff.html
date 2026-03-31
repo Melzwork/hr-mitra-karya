@@ -95,8 +95,8 @@
           </div>
         </div>
         <div style="grid-column:1/-1;border-top:1px solid var(--gray-200);padding-top:12px;margin-top:4px;">
-          {{ row('Ditambahkan oleh', staff.created_by ~ ' · ' ~ staff.created_at[:16]) }}
-          {% if staff.updated_by %}{{ row('Diubah oleh', staff.updated_by ~ ' · ' ~ staff.updated_at[:16]) }}{% endif %}
+          {{ row('Ditambahkan oleh', staff.created_by ~ ' · ' ~ (staff.created_at|datestr)) }}
+          {% if staff.updated_by %}{{ row('Diubah oleh', staff.updated_by ~ ' · ' ~ (staff.updated_at|datestr)) }}{% endif %}
           {% if staff.is_blacklisted %}{{ row('Alasan Blacklist', staff.blacklist_reason) }}{% endif %}
         </div>
       </div>
@@ -209,7 +209,7 @@
             {% endif %}
           </td>
           <td style="font-size:12px;color:var(--text-muted);">{{ doc.physical_location or '—' }}</td>
-          <td style="font-size:11px;color:var(--text-muted);">{{ doc.created_at[:10] }}</td>
+          <td style="font-size:11px;color:var(--text-muted);">{{ doc.created_at|datestr }}</td>
           <td>
           {% if (doc.need_drive and not doc.drive_path) or not doc.physical_location or is_head_or_owner %}
             <button onclick="openUpdateModal('doc',{{ doc.id }},'{{ doc.doc_ref }}',{{ 'true' if doc.drive_path else 'false' }},{{ 'true' if doc.physical_location else 'false' }})" class="btn btn-outline btn-xs">{{ '✏ Edit' if is_head_or_owner and doc.drive_path and doc.physical_location else '+ Isi' }}</button>

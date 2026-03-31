@@ -21,7 +21,7 @@
             {{ 'Owner/Admin' if u.role=='owner' else 'HR Head' if u.role=='hr_head' else 'HR Staff' }}
           </span>
         </td>
-        <td style="font-size:12px;color:var(--text-muted);">{{ u.created_at[:10] }}</td>
+        <td style="font-size:12px;color:var(--text-muted);">{{ u.created_at|datestr }}</td>
         <td style="display:flex;gap:6px;">
           <button onclick="openResetModal({{ u.id }}, '{{ u.username }}')" class="btn btn-outline btn-sm">Reset Password</button>
           {% if u.username != session.user %}
