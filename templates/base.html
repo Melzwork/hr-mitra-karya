@@ -239,6 +239,9 @@ textarea { resize: vertical; min-height: 80px; }
     <a href="{{ url_for('sponsors') }}" class="nav-item {% if request.endpoint=='sponsors' %}active{% endif %}">
       <span class="icon">🤝</span> Sponsor
     </a>
+    <a href="{{ url_for('hr_hasil_tes') }}" class="nav-item {% if request.endpoint=='hr_hasil_tes' %}active{% endif %}">
+      <span class="icon">📝</span> Hasil Tes Kandidat
+    </a>
     {% endif %}
     {% if session.role == 'owner' %}
     <div class="nav-section">Owner</div>

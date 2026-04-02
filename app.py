@@ -982,27 +982,17 @@ def get_exit_docs():
 def safe_init_db():
     try:
         with get_db() as db:
-            # Check if users table already has data
             count = db.fetchval("SELECT COUNT(*) FROM users")
             if count and count > 0:
                 print("Database already initialized — skipping init_db()")
-                init_test_tables()
                 return
     except:
-        pass  # Table doesn't exist yet — run init
+        pass
     try:
         init_db()
         print("Database initialized successfully")
     except Exception as e:
         print(f"Warning: init_db error: {e}")
-    try:
-        init_test_tables()
-        print("Test tables initialized successfully")
-    except Exception as e:
-        print(f"Warning: init_test_tables error: {e}")
-
-with app.app_context():
-    safe_init_db()
 
 
 
@@ -1639,6 +1629,15 @@ def hr_excel_verdict(result_id):
     flash('Hasil tes Excel berhasil disimpan.', 'success')
     return redirect(url_for('hr_hasil_tes'))
 
+
+# Initialize DB at startup — called here so all functions are defined first
+with app.app_context():
+    safe_init_db()
+    try:
+        init_test_tables()
+        print("Test tables initialized successfully")
+    except Exception as e:
+        print(f"Warning: init_test_tables error: {e}")
 
 if __name__ == '__main__':
     os.makedirs(os.path.join(os.path.dirname(__file__),'instance'),exist_ok=True)
