@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tes Kandidat — PT Mitra Karya Texindo</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#F5F4F0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem}
+.card{background:#fff;border:1px solid #E0DED6;border-radius:16px;padding:2.5rem 2rem;width:100%;max-width:420px;text-align:center}
+.logo{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#9B9A94;margin-bottom:2rem}
+h1{font-size:22px;font-weight:500;color:#1A1916;margin-bottom:.5rem}
+p.sub{font-size:14px;color:#6B6A64;margin-bottom:2rem;line-height:1.6}
+.field{text-align:left;margin-bottom:1.25rem}
+label{display:block;font-size:12px;font-weight:500;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+input[type=text]{width:100%;padding:12px 14px;border:1px solid #E0DED6;border-radius:8px;font-size:16px;font-family:'DM Mono',monospace;color:#1A1916;background:#fff;letter-spacing:.08em;text-transform:uppercase;outline:none;transition:border-color .15s}
+input[type=text]:focus{border-color:#A0A09A}
+input[type=text]::placeholder{text-transform:none;letter-spacing:0;font-family:'DM Sans',sans-serif;color:#C8C6BC}
+.btn{width:100%;padding:13px;background:#1A1916;color:#F5F4F0;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:.5rem;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.error{background:#FAEAEA;border:1px solid #D4A0A0;color:#8B1F1F;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:1.25rem;text-align:left}
+.divider{height:1px;background:#F0EFE9;margin:2rem 0}
+.hint{font-size:12px;color:#9B9A94;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="card">
+  <p class="logo">PT Mitra Karya Texindo</p>
+  <h1>Tes Seleksi Kandidat</h1>
+  <p class="sub">Masukkan kode tes yang diberikan oleh staf HR untuk memulai.</p>
+  {% if error %}
+  <div class="error">{{ error }}</div>
+  {% endif %}
+  <form method="POST" action="/tes/masuk">
+    <div class="field">
+      <label>Kode Tes</label>
+      <input type="text" name="code" placeholder="Contoh: MKT-4X7K" maxlength="8" required autocomplete="off">
+    </div>
+    <button type="submit" class="btn">Lanjutkan →</button>
+  </form>
+  <div class="divider"></div>
+  <p class="hint">Kode tes berlaku selama 1 jam sejak diterbitkan.<br>Hubungi staf HR jika kode tidak berfungsi.</p>
+</div>
+</body>
+</html>

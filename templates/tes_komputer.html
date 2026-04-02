@@ -1,0 +1,82 @@
+<!-- tes_komputer.html -->
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tes Komputer — PT Mitra Karya Texindo</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#F5F4F0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem 1rem}
+.card{background:#fff;border:1px solid #E0DED6;border-radius:16px;padding:2.5rem 2rem;width:100%;max-width:500px}
+.logo{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#9B9A94;margin-bottom:1.5rem;text-align:center}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#FEF3E2;border:1px solid #F0C880;border-radius:8px;color:#7A4A00;font-size:13px;font-weight:500;margin-bottom:1.5rem}
+h1{font-size:20px;font-weight:500;color:#1A1916;margin-bottom:1rem}
+.instructions{margin-bottom:1.5rem}
+.instructions p{font-size:14px;color:#6B6A64;margin-bottom:.5rem;line-height:1.6}
+.task-list{list-style:none;display:flex;flex-direction:column;gap:8px;margin:1rem 0 1.5rem}
+.task-list li{display:flex;align-items:flex-start;gap:10px;font-size:14px;color:#1A1916;line-height:1.5}
+.task-num{width:22px;height:22px;border-radius:50%;background:#1A1916;color:#F5F4F0;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.timer-large{text-align:center;margin:1.5rem 0}
+.timer-val{font-family:'DM Mono',monospace;font-size:40px;font-weight:500;color:#1A1916}
+.timer-val.warning{color:#7A4A00}
+.timer-val.danger{color:#8B1F1F;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.timer-label{font-size:12px;color:#9B9A94;margin-top:4px}
+.divider{height:1px;background:#F0EFE9;margin:1.5rem 0}
+.hr-note{background:#F5F4F0;border-radius:8px;padding:12px 14px;font-size:13px;color:#6B6A64;margin-bottom:1rem;line-height:1.6}
+.hr-note strong{color:#1A1916;font-weight:500}
+.btn{width:100%;padding:13px;background:#1A1916;color:#F5F4F0;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="card">
+  <p class="logo">PT Mitra Karya Texindo</p>
+  <div style="text-align:center">
+    <span class="badge">Bagian 4 — Tes Komputer (Excel)</span>
+  </div>
+  <h1>Silahkan lanjutkan ke tes komputer</h1>
+  <div class="instructions">
+    <p>Tes komputer akan dilakukan langsung di file Excel yang sudah disiapkan oleh staf HR.</p>
+  </div>
+  <ul class="task-list">
+    <li><span class="task-num">1</span>Hitung total dan rata-rata kolom data menggunakan formula</li>
+    <li><span class="task-num">2</span>Gunakan fungsi IF untuk menentukan status (≥70 = LULUS)</li>
+    <li><span class="task-num">3</span>Filter data berdasarkan kategori yang ditentukan</li>
+    <li><span class="task-num">4</span>Temukan dan perbaiki kesalahan data yang ada</li>
+    <li><span class="task-num">5</span>Buat tabel ringkasan sederhana dari data yang tersedia</li>
+  </ul>
+  <div class="timer-large">
+    <div class="timer-val" id="timerDisplay">15:00</div>
+    <div class="timer-label">Waktu tes komputer</div>
+  </div>
+  <div class="divider"></div>
+  <div class="hr-note">
+    <strong>Untuk staf HR:</strong> Klik tombol di bawah setelah kandidat selesai atau waktu habis untuk menyimpan hasil dan melanjutkan.
+  </div>
+  <form method="POST" action="/tes/komputer/selesai">
+    <button type="submit" class="btn" id="doneBtn">Kandidat Selesai — Simpan & Lanjut →</button>
+  </form>
+</div>
+<script>
+var timeLeft = 900;
+var timerEl = document.getElementById('timerDisplay');
+var interval = setInterval(function() {
+  timeLeft--;
+  var m = Math.floor(timeLeft / 60);
+  var s = timeLeft % 60;
+  timerEl.textContent = (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  if (timeLeft <= 60) timerEl.className = 'timer-val danger';
+  else if (timeLeft <= 180) timerEl.className = 'timer-val warning';
+  if (timeLeft <= 0) {
+    clearInterval(interval);
+    timerEl.textContent = '00:00';
+    timerEl.className = 'timer-val danger';
+  }
+}, 1000);
+</script>
+</body>
+</html>

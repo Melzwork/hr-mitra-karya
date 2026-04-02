@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime, date, timedelta
 from functools import wraps
-import os, hashlib, json, calendar
+import os, hashlib, json, calendar, random, string
 
 # ── Database: PostgreSQL on Railway, SQLite locally ────────────────────────────
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
@@ -15,15 +15,19 @@ else:
     DB_PATH = os.path.join(os.path.dirname(__file__), 'instance', 'hr_master.db')
 
 app = Flask(__name__)
+app.jinja_env.globals.update(enumerate=enumerate)
 app.secret_key = os.environ.get('SECRET_KEY', 'hr_mitra_karya_2026_secret')
 
 # Custom Jinja2 filter: format date safely for both SQLite (string) and PostgreSQL (datetime)
 @app.template_filter('datestr')
 def datestr_filter(value):
     if value is None: return '—'
-    if hasattr(value, 'strftime'): return value.strftime('%Y-%m-%d')
-    return str(value)[:10]
-
+    if hasattr(value, 'strftime'):
+        return value.strftime('%d %b %Y')
+    try:
+        return str(value)[:10]
+    except:
+        return str(value)
 DEPARTMENTS_POSITIONS = {
     "Finishing": ["Padder Dryer", "Centrifugal & Scutcher", "Calendar & Compactor", "Setting"],
     "Dyeing": ["Dyeing"],
@@ -202,7 +206,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS staff (
             id SERIAL PRIMARY KEY, emp_id VARCHAR(20) UNIQUE NOT NULL,
             full_name VARCHAR(200) NOT NULL, ktp_number VARCHAR(20) NOT NULL,
-            birth_date VARCHAR(20) NOT NULL, gender VARCHAR(20) NOT NULL,
+            birth_date VARCHAR(20) NOT NULL, birth_place VARCHAR(100) NOT NULL DEFAULT '', gender VARCHAR(20) NOT NULL,
             religion VARCHAR(50) NOT NULL DEFAULT 'Islam',
             address TEXT NOT NULL, rt_rw VARCHAR(20) NOT NULL DEFAULT '',
             kelurahan VARCHAR(100) NOT NULL DEFAULT '',
@@ -254,6 +258,8 @@ def init_db():
         cur.execute("""
         CREATE TABLE IF NOT EXISTS id_counter (
             prefix VARCHAR(50) PRIMARY KEY, last_number INTEGER DEFAULT 0)""")
+        try: cur.execute("ALTER TABLE staff ADD COLUMN birth_place VARCHAR(100) NOT NULL DEFAULT ''")
+        except: pass
         conn.commit()
         # Default users
         def pw(p): return hashlib.sha256(p.encode()).hexdigest()
@@ -278,7 +284,7 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 emp_id TEXT UNIQUE NOT NULL, full_name TEXT NOT NULL,
                 ktp_number TEXT NOT NULL, birth_date TEXT NOT NULL,
-                gender TEXT NOT NULL, religion TEXT NOT NULL DEFAULT 'Islam',
+                birth_place TEXT NOT NULL DEFAULT '', gender TEXT NOT NULL, religion TEXT NOT NULL DEFAULT 'Islam',
                 address TEXT NOT NULL, rt_rw TEXT NOT NULL DEFAULT '',
                 kelurahan TEXT NOT NULL DEFAULT '',
                 kecamatan TEXT NOT NULL DEFAULT '',
@@ -328,6 +334,7 @@ def init_db():
                 prefix TEXT PRIMARY KEY, last_number INTEGER DEFAULT 0);
             ''')
             for table, col, defn in [
+                ("staff","birth_place","TEXT NOT NULL DEFAULT ''"),
                 ("staff","religion","TEXT NOT NULL DEFAULT 'Islam'"),
                 ("staff","rt_rw","TEXT NOT NULL DEFAULT ''"),
                 ("staff","kelurahan","TEXT NOT NULL DEFAULT ''"),
@@ -586,14 +593,14 @@ def add_staff():
                 return redirect(url_for('view_staff',staff_id=existing['id']))
 
             emp_id = gen_emp_id()
-            db.fetchall("""INSERT INTO staff
-                (emp_id,full_name,ktp_number,birth_date,gender,religion,
+            db.execute("""INSERT INTO staff
+                (emp_id,full_name,ktp_number,birth_date,birth_place,gender,religion,
                  address,rt_rw,kelurahan,kecamatan,kota,provinsi,
                  phone,position,department,education,
                  emergency_contact,emergency_relationship,emergency_phone,created_by)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (emp_id,request.form['full_name'],ktp,
-                 request.form['birth_date'],request.form['gender'],request.form['religion'],
+                 request.form['birth_date'],request.form.get('birth_place',''),request.form['gender'],request.form['religion'],
                  request.form['address'],request.form['rt_rw'],
                  request.form['kelurahan'],request.form['kecamatan'],
                  request.form['kota'],request.form['provinsi'],
@@ -666,12 +673,12 @@ def edit_staff(staff_id):
     if not staff: return redirect(url_for('staff_list'))
     if request.method == 'POST':
         with get_db() as db:
-            db.fetchall("""UPDATE staff SET full_name=?,birth_date=?,gender=?,religion=?,
+            db.execute("""UPDATE staff SET full_name=?,birth_date=?,birth_place=?,gender=?,religion=?,
                          address=?,rt_rw=?,kelurahan=?,kecamatan=?,kota=?,provinsi=?,
                          phone=?,position=?,department=?,education=?,
                          emergency_contact=?,emergency_relationship=?,emergency_phone=?,
                          updated_by=?,updated_at=datetime('now','localtime') WHERE id=?""",
-                      (request.form['full_name'],request.form['birth_date'],request.form['gender'],
+                      (request.form['full_name'],request.form['birth_date'],request.form.get('birth_place',''),request.form['gender'],
                        request.form['religion'],request.form['address'],request.form['rt_rw'],
                        request.form['kelurahan'],request.form['kecamatan'],request.form['kota'],
                        request.form['provinsi'],request.form['phone'],request.form['position'],
@@ -979,6 +986,7 @@ def safe_init_db():
             count = db.fetchval("SELECT COUNT(*) FROM users")
             if count and count > 0:
                 print("Database already initialized — skipping init_db()")
+                init_test_tables()
                 return
     except:
         pass  # Table doesn't exist yet — run init
@@ -987,9 +995,650 @@ def safe_init_db():
         print("Database initialized successfully")
     except Exception as e:
         print(f"Warning: init_db error: {e}")
+    try:
+        init_test_tables()
+        print("Test tables initialized successfully")
+    except Exception as e:
+        print(f"Warning: init_test_tables error: {e}")
 
 with app.app_context():
     safe_init_db()
+
+
+
+# ── TES KANDIDAT — routes to append to app.py ─────────────────────────────────
+# Add these imports to the top of app.py:
+#   import random, string
+# Add init_test_tables() call inside safe_init_db() or at app startup.
+
+import random, string
+
+# ── Question Bank ──────────────────────────────────────────────────────────────
+
+# Colour codes and lot codes used at MKT for accuracy questions
+# Each item: (code_a, code_b, is_same)
+ACCURACY_PAIRS = {
+    'operator': [
+        ('MKT602260004787A', 'MKT602260004787A', True),
+        ('MKT602260004787A', 'MKT60226004787A',  False),  # missing zero
+        ('MKT501150003214B', 'MKT501150003214B', True),
+        ('MKT501150003214B', 'MKT501150003241B', False),  # digits swapped
+        ('P1318C26281025',   'P1316C26281025',   False),  # 8->6
+        ('P1318C26281025',   'P1318C26281025',   True),
+        ('P2204A18530612',   'P2204A18530612',   True),
+        ('P2204A18530612',   'P2204A18530162',   False),  # digits swapped
+        ('MKT703370008851C', 'MKT703370008851C', True),
+        ('MKT703370008851C', 'MKT703370008815C', False),  # 51->15
+        ('P0917B30042761',   'P0917B30042761',   True),
+        ('P0917B30042761',   'P0917B30042716',   False),  # last digits swapped
+        ('MKT408440006623A', 'MKT408440006623A', True),
+        ('MKT408440006623A', 'MKT408440006632A', False),  # 23->32
+        ('P1531D44187203',   'P1531D44187203',   True),
+        ('P1531D44187203',   'P1531D44182703',   False),  # middle swap
+        ('MKT119920001045B', 'MKT119920001045B', True),
+        ('MKT119920001045B', 'MKT11992001045B',  False),  # missing zero
+        ('P0623E55291804',   'P0623E55291804',   True),
+        ('P0623E55291804',   'P0623E55219804',   False),  # 91->19
+    ],
+    'staff': [
+        ('MKT602260004787A', 'MKT60226004787A',  False),
+        ('MKT501150003214B', 'MKT501150003214B', True),
+        ('P1318C26281025',   'P1316C2861025',    False),  # two differences
+        ('MKT703370008851C', 'MKT703370008851C', True),
+        ('P2204A18530612',   'P2204A18350612',   False),
+        ('MKT408440006623A', 'MKT408440006623A', True),
+        ('P1531D44187203',   'P1531D44187203',   True),
+        ('MKT119920001045B', 'MKT119920001054B', False),
+        ('P0623E55291804',   'P0623E55291804',   True),
+        ('MKT305530007792D', 'MKT305530007972D', False),
+        ('P0812F66304517',   'P0812F66304517',   True),
+        ('MKT204420005561B', 'MKT204420005561B', True),
+        ('P1109G77415628',   'P1109G77415682',   False),
+        ('MKT901810009934C', 'MKT901810009934C', True),
+        ('P0716H88526739',   'P0761H88526739',   False),
+        ('MKT607670004478A', 'MKT607670004478A', True),
+        ('P1423I99637840',   'P1423I99637840',   True),
+        ('MKT803880006695D', 'MKT803880006965D', False),
+        ('P0520J10748951',   'P0520J10748951',   True),
+        ('MKT412250008823B', 'MKT412250008823B', True),
+    ],
+    'admin': [
+        ('MKT602260004787A', 'MKT60226004787A',  False),
+        ('P1318C26281025',   'P1316C2861025',    False),
+        ('MKT501150003214B', 'MKT501150003214B', True),
+        ('P2204A18530612',   'P2240A18530612',   False),
+        ('MKT703370008851C', 'MKT703370008851C', True),
+        ('P1531D44187203',   'P1531D44187203',   True),
+        ('MKT408440006623A', 'MKT408440006632A', False),
+        ('P0623E55291804',   'P0623E55219804',   False),
+        ('MKT119920001045B', 'MKT119920001045B', True),
+        ('P0812F66304517',   'P0812F66304517',   True),
+        ('MKT305530007792D', 'MKT305530007792D', True),
+        ('P1109G77415628',   'P1109G77415682',   False),
+        ('MKT901810009934C', 'MKT901910009934C', False),
+        ('P0716H88526739',   'P0716H88526739',   True),
+        ('MKT607670004478A', 'MKT607670004478A', True),
+        ('P1423I99637840',   'P1432I99637840',   False),
+        ('MKT803880006695D', 'MKT803880006695D', True),
+        ('P0520J10748951',   'P0520J10784951',   False),
+        ('MKT412250008823B', 'MKT412250008823B', True),
+        ('P1317K21859062',   'P1317K21859062',   True),
+    ]
+}
+
+MATH_QUESTIONS = {
+    'operator': [
+        {
+            'q': 'Target produksi hari ini adalah 480 unit dalam 8 jam kerja. Berapa unit yang harus diproduksi per jam?',
+            'opts': ['50 unit', '60 unit', '55 unit', '65 unit'], 'ans': 1
+        },
+        {
+            'q': 'Untuk membuat 1 roll kain dibutuhkan 4,5 kg benang. Berapa kg benang yang dibutuhkan untuk 8 roll?',
+            'opts': ['32 kg', '36 kg', '38 kg', '40 kg'], 'ans': 1
+        },
+        {
+            'q': 'Stok karton di gudang: 200 buah. Diambil 75 buah untuk packing. Berapa karton yang tersisa?',
+            'opts': ['115', '125', '135', '120'], 'ans': 1
+        },
+        {
+            'q': 'Seorang operator mengemas 48 produk per jam. Berapa produk yang dikemas dalam 6 jam?',
+            'opts': ['268', '288', '278', '258'], 'ans': 1
+        },
+        {
+            'q': 'Dalam 1 hari ada 2 shift kerja, masing-masing 8 jam. Mesin berhenti 30 menit per pergantian shift. Berapa jam total mesin beroperasi dalam sehari?',
+            'opts': ['14,5 jam', '15 jam', '15,5 jam', '16 jam'], 'ans': 2
+        },
+        {
+            'q': 'Satu bal kain berisi 50 meter. Ada 12 bal kain di gudang. Berapa meter total kain?',
+            'opts': ['550 m', '600 m', '580 m', '620 m'], 'ans': 1
+        },
+        {
+            'q': 'Mesin A memproduksi 90 unit per jam. Target hari ini 720 unit. Berapa jam mesin harus beroperasi?',
+            'opts': ['6 jam', '7 jam', '8 jam', '9 jam'], 'ans': 2
+        },
+        {
+            'q': 'Masuk gudang: 350 kg benang. Keluar: 120 kg. Rusak: 15 kg. Berapa kg benang yang masih bisa digunakan?',
+            'opts': ['200 kg', '210 kg', '215 kg', '220 kg'], 'ans': 2
+        },
+        {
+            'q': 'Satu karton berisi 24 potong kain. Ada 15 karton siap kirim. Berapa total potong kain?',
+            'opts': ['320', '340', '360', '380'], 'ans': 2
+        },
+        {
+            'q': 'Target mingguan: 2.400 unit dalam 6 hari kerja. Berapa unit target per hari?',
+            'opts': ['350', '380', '400', '420'], 'ans': 2
+        },
+    ],
+    'staff': [
+        {
+            'q': 'Target produksi minggu ini: 3.600 unit dalam 6 hari kerja, 8 jam per hari. Berapa unit per jam yang harus dicapai?',
+            'opts': ['70 unit', '75 unit', '80 unit', '85 unit'], 'ans': 1
+        },
+        {
+            'q': 'Realisasi produksi bulan ini: 11.800 unit. Target: 12.500 unit. Berapa persen pencapaian?',
+            'opts': ['92,4%', '94,4%', '95,4%', '93,4%'], 'ans': 1
+        },
+        {
+            'q': 'Dari 500 meter kain yang diproduksi, 25 meter dinyatakan cacat. Berapa persen tingkat cacat?',
+            'opts': ['4%', '5%', '6%', '7%'], 'ans': 1
+        },
+        {
+            'q': 'Order masuk: 8.000 meter kain. Stok tersedia: 3.200 meter. Bahan baku untuk 1 meter membutuhkan 1,2 kg benang. Berapa kg benang yang masih dibutuhkan?',
+            'opts': ['5.520 kg', '5.760 kg', '5.640 kg', '5.800 kg'], 'ans': 0
+        },
+        {
+            'q': 'Kapasitas mesin: 150 unit per jam. Dalam 8 jam kerja ada 2 kali berhenti masing-masing 15 menit. Berapa total unit yang bisa diproduksi?',
+            'opts': ['1.125 unit', '1.150 unit', '1.200 unit', '1.050 unit'], 'ans': 0
+        },
+        {
+            'q': 'Produksi bulan lalu: 12.400 unit. Bulan ini naik 15%. Berapa produksi bulan ini?',
+            'opts': ['13.860 unit', '14.260 unit', '14.060 unit', '13.660 unit'], 'ans': 0
+        },
+        {
+            'q': 'Satu order membutuhkan 2,5 kg benang per meter kain. Order sebesar 400 meter. Stok benang tersedia 850 kg. Apakah stok cukup? Jika tidak, berapa kg kekurangannya?',
+            'opts': ['Cukup, sisa 150 kg', 'Kurang 50 kg', 'Kurang 150 kg', 'Cukup, sisa 50 kg'], 'ans': 1
+        },
+        {
+            'q': 'Mesin B mampu menghasilkan 200 meter kain per jam. Target order: 3.000 meter. Berapa hari kerja (8 jam/hari) yang dibutuhkan?',
+            'opts': ['1,5 hari', '2 hari', '1,875 hari', '2,5 hari'], 'ans': 2
+        },
+        {
+            'q': 'Dari 240 karyawan, 30% adalah perempuan. Berapa jumlah karyawan laki-laki?',
+            'opts': ['72', '148', '168', '160'], 'ans': 2
+        },
+        {
+            'q': 'Reject rate target maksimal 3%. Produksi hari ini 850 unit, reject 30 unit. Apakah target tercapai?',
+            'opts': ['Ya, reject rate 3,0%', 'Tidak, reject rate 3,53%', 'Ya, reject rate 2,8%', 'Tidak, reject rate 4,0%'], 'ans': 1
+        },
+    ],
+    'admin': [
+        {
+            'q': 'Satu order membutuhkan 120 meter kain per warna. Ada 4 warna. Stok tersedia 380 meter. Berapa meter kekurangannya?',
+            'opts': ['80 meter', '100 meter', '60 meter', '40 meter'], 'ans': 0
+        },
+        {
+            'q': 'Dari 5 hari kerja, seorang karyawan hadir 4 hari. Berapa persen tingkat kehadirannya?',
+            'opts': ['75%', '80%', '85%', '90%'], 'ans': 1
+        },
+        {
+            'q': 'Stok benang awal bulan: 2.500 kg. Masuk: 1.200 kg. Terpakai: 1.800 kg. Berapa stok akhir bulan?',
+            'opts': ['1.800 kg', '1.900 kg', '2.000 kg', '1.700 kg'], 'ans': 1
+        },
+        {
+            'q': 'Dalam sebulan ada 26 hari kerja. Karyawan A tidak masuk 4 hari. Berapa persen tingkat absensinya?',
+            'opts': ['13,4%', '14,4%', '15,4%', '16,4%'], 'ans': 2
+        },
+        {
+            'q': 'Order A: 500 meter @ 1,5 kg benang/meter. Order B: 300 meter @ 2 kg benang/meter. Berapa total benang yang dibutuhkan?',
+            'opts': ['1.300 kg', '1.350 kg', '1.400 kg', '1.450 kg'], 'ans': 0
+        },
+        {
+            'q': 'Kapasitas gudang: 5.000 unit. Saat ini terisi 3.750 unit. Berapa persen kapasitas yang sudah terpakai?',
+            'opts': ['70%', '72%', '75%', '78%'], 'ans': 2
+        },
+        {
+            'q': 'Reorder point: stok di bawah 500 kg. Stok saat ini: 380 kg. Order minimum: 1.000 kg. Apakah perlu order?',
+            'opts': ['Tidak perlu', 'Perlu, order 620 kg', 'Perlu, order 1.000 kg', 'Perlu, order 500 kg'], 'ans': 2
+        },
+        {
+            'q': 'Dari 3 mesin, mesin A produksi 200 m/hari, B produksi 150 m/hari, C produksi 180 m/hari. Berapa hari untuk selesaikan order 2.600 meter?',
+            'opts': ['4 hari', '5 hari', '6 hari', '3 hari'], 'ans': 1
+        },
+        {
+            'q': 'Jumlah karyawan aktif: 245. Karyawan hadir: 218. Berapa persen tingkat kehadiran hari ini?',
+            'opts': ['87%', '88%', '89%', '90%'], 'ans': 2
+        },
+        {
+            'q': 'Sisa kontrak karyawan: 45 hari. Hari ini tanggal 2 April 2026. Kapan kontrak berakhir?',
+            'opts': ['15 Mei 2026', '16 Mei 2026', '17 Mei 2026', '18 Mei 2026'], 'ans': 2
+        },
+    ]
+}
+
+LOGIC_QUESTIONS = {
+    'operator': [
+        # Number sequences
+        {'type': 'seq', 'q': 'Lanjutkan urutan: 2, 4, 6, 8, ...', 'opts': ['9', '10', '11', '12'], 'ans': 1},
+        {'type': 'seq', 'q': 'Lanjutkan urutan: 5, 10, 15, 20, ...', 'opts': ['22', '24', '25', '30'], 'ans': 2},
+        {'type': 'seq', 'q': 'Lanjutkan urutan: 1, 3, 5, 7, ...', 'opts': ['8', '9', '10', '11'], 'ans': 1},
+        {'type': 'seq', 'q': 'Lanjutkan urutan: 100, 90, 80, 70, ...', 'opts': ['55', '60', '65', '50'], 'ans': 1},
+        {'type': 'seq', 'q': 'Lanjutkan urutan: 3, 6, 9, 12, ...', 'opts': ['13', '14', '15', '16'], 'ans': 2},
+        # Simple deduction
+        {'type': 'logic', 'q': 'Semua produk yang lolos QC boleh dikirim. Produk A lolos QC. Maka produk A:', 'opts': ['Tidak boleh dikirim', 'Mungkin boleh dikirim', 'Boleh dikirim', 'Perlu dicek ulang'], 'ans': 2},
+        {'type': 'logic', 'q': 'Mesin selalu berhenti jika tidak ada bahan baku. Saat ini tidak ada bahan baku. Maka mesin:', 'opts': ['Tetap jalan', 'Mungkin berhenti', 'Pasti berhenti', 'Butuh dicek'], 'ans': 2},
+        {'type': 'logic', 'q': 'Shift pagi mulai jam 07.00, shift siang mulai 4 jam kemudian. Shift siang mulai jam:', 'opts': ['10.00', '11.00', '12.00', '13.00'], 'ans': 1},
+        # Raven style (described in text for operator - simpler)
+        {'type': 'matrix', 'q': 'Pola: Baris 1: ▲ ▲▲ ▲▲▲ | Baris 2: ■ ■■ ■■■ | Baris 3: ● ●● ?', 'opts': ['●', '●●●', '●●', '■■■'], 'ans': 1},
+        {'type': 'matrix', 'q': 'Urutan gambar: kotak kecil → kotak sedang → kotak besar → kotak kecil → kotak sedang → ?', 'opts': ['kotak kecil', 'kotak besar', 'kotak sedang', 'lingkaran'], 'ans': 1},
+    ],
+    'staff': [
+        # Number sequences (harder)
+        {'type': 'seq', 'q': 'Lanjutkan urutan: 3, 6, 12, 24, ...', 'opts': ['36', '42', '48', '56'], 'ans': 2},
+        {'type': 'seq', 'q': 'Lanjutkan urutan: 1, 4, 9, 16, ...', 'opts': ['20', '24', '25', '30'], 'ans': 2},
+        {'type': 'seq', 'q': 'Lanjutkan urutan: 2, 5, 10, 17, 26, ...', 'opts': ['33', '35', '37', '40'], 'ans': 2},
+        {'type': 'seq', 'q': 'Lanjutkan urutan: 100, 50, 25, 12.5, ...', 'opts': ['5', '6', '6.25', '7'], 'ans': 2},
+        {'type': 'seq', 'q': 'Lanjutkan urutan: 1, 1, 2, 3, 5, 8, ...', 'opts': ['10', '11', '12', '13'], 'ans': 3},
+        # Deduction
+        {'type': 'logic', 'q': 'Jika semua pengawas wajib hadir rapat, dan Budi adalah pengawas, maka:', 'opts': ['Budi mungkin hadir rapat', 'Budi tidak wajib hadir', 'Budi wajib hadir rapat', 'Tidak bisa ditentukan'], 'ans': 2},
+        {'type': 'logic', 'q': 'Semua produk reject tidak boleh dikirim. Produk X adalah reject. Produk Y bukan reject. Mana yang boleh dikirim?', 'opts': ['Produk X', 'Produk Y', 'Keduanya', 'Tidak ada'], 'ans': 1},
+        {'type': 'logic', 'q': 'Mesin A lebih cepat dari mesin B. Mesin B lebih cepat dari mesin C. Mesin mana yang paling lambat?', 'opts': ['Mesin A', 'Mesin B', 'Mesin C', 'Tidak bisa ditentukan'], 'ans': 2},
+        # Matrix (Raven style - SVG rendered)
+        {'type': 'raven', 'q': 'Perhatikan pola matriks 3×3. Baris 1: ○ ○○ ○○○ | Baris 2: □ □□ □□□ | Baris 3: △ △△ ?', 'opts': ['○', '△△', '△△△', '□□□'], 'ans': 2},
+        {'type': 'raven', 'q': 'Pola: setiap baris, bentuk bergerak dari kiri ke kanan. Baris 1: ■□□ | Baris 2: □■□ | Baris 3: ?', 'opts': ['■□□', '□□■', '□■□', '■■□'], 'ans': 1},
+    ],
+    'admin': [
+        # Number sequences
+        {'type': 'seq', 'q': 'Lanjutkan urutan: 3, 6, 12, 24, ...', 'opts': ['36', '42', '48', '56'], 'ans': 2},
+        {'type': 'seq', 'q': 'Lanjutkan urutan: 1, 4, 9, 16, 25, ...', 'opts': ['30', '35', '36', '40'], 'ans': 2},
+        {'type': 'seq', 'q': 'Lanjutkan urutan: 2, 5, 10, 17, 26, ...', 'opts': ['33', '35', '37', '40'], 'ans': 2},
+        {'type': 'seq', 'q': 'Lanjutkan urutan: 1, 1, 2, 3, 5, 8, ...', 'opts': ['10', '11', '12', '13'], 'ans': 3},
+        {'type': 'seq', 'q': 'Lanjutkan urutan: 512, 256, 128, 64, ...', 'opts': ['16', '24', '32', '48'], 'ans': 2},
+        # Formula logic (admin only)
+        {'type': 'logic', 'q': 'Formula Excel: =IF(C2>=70,"LULUS","TIDAK LULUS"). Nilai di C2 adalah 68. Hasilnya:', 'opts': ['LULUS', 'TIDAK LULUS', 'ERROR', '68'], 'ans': 1},
+        {'type': 'logic', 'q': 'Formula: =SUM(A1:A5). Nilai A1=10, A2=20, A3=15, A4=25, A5=30. Hasilnya:', 'opts': ['90', '95', '100', '105'], 'ans': 2},
+        {'type': 'logic', 'q': 'Formula: =AVERAGE(B1:B4). B1=80, B2=90, B3=70, B4=60. Hasilnya:', 'opts': ['72', '75', '78', '80'], 'ans': 1},
+        {'type': 'logic', 'q': 'Formula: =IF(AND(A1>0,B1>0),"OK","TIDAK"). A1=5, B1=-3. Hasilnya:', 'opts': ['OK', 'TIDAK', 'ERROR', '5'], 'ans': 1},
+        {'type': 'raven', 'q': 'Pola matriks: setiap kolom jumlah titik bertambah 1. Baris 3 kolom 1 = 1 titik, kolom 2 = 2 titik, kolom 3 = ?', 'opts': ['2 titik', '3 titik', '4 titik', '1 titik'], 'ans': 1},
+    ]
+}
+
+POSITION_TIER = {
+    'Operator Mesin':  'operator',
+    'Tukang Panggul':  'operator',
+    'Staff':           'staff',
+    'Pengawas':        'staff',
+    'Kepala Bagian':   'staff',
+    'Admin':           'admin',
+}
+
+POSITIONS = list(POSITION_TIER.keys())
+
+# ── DB table creation (call this from init_db / safe_init_db) ──────────────────
+
+def init_test_tables():
+    """Create test_codes and test_results tables if they don't exist."""
+    if PG:
+        url = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+        conn = psycopg2.connect(url)
+        cur = conn.cursor()
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS test_codes (
+            id SERIAL PRIMARY KEY,
+            code VARCHAR(10) UNIQUE NOT NULL,
+            posisi VARCHAR(100) NOT NULL,
+            tier VARCHAR(20) NOT NULL,
+            status VARCHAR(20) DEFAULT 'unused',
+            created_by VARCHAR(100),
+            created_at TIMESTAMP DEFAULT NOW(),
+            expires_at TIMESTAMP,
+            used_by_nama VARCHAR(200),
+            used_by_nik VARCHAR(20),
+            result_id INTEGER
+        )""")
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS test_results (
+            id SERIAL PRIMARY KEY,
+            code VARCHAR(10),
+            nama_lengkap VARCHAR(200) NOT NULL,
+            nik VARCHAR(20) NOT NULL,
+            posisi VARCHAR(100) NOT NULL,
+            tier VARCHAR(20) NOT NULL,
+            skor_ketelitian INTEGER DEFAULT 0,
+            skor_matematika INTEGER DEFAULT 0,
+            skor_logika INTEGER DEFAULT 0,
+            skor_excel VARCHAR(20) DEFAULT NULL,
+            verdict VARCHAR(20) DEFAULT 'PENDING',
+            tanggal_tes DATE DEFAULT CURRENT_DATE,
+            selesai_at TIMESTAMP DEFAULT NOW(),
+            created_by VARCHAR(100)
+        )""")
+        conn.commit()
+        conn.close()
+    else:
+        with DB() as db:
+            try:
+                db.execute("""CREATE TABLE IF NOT EXISTS test_codes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    code TEXT UNIQUE NOT NULL, posisi TEXT NOT NULL, tier TEXT NOT NULL,
+                    status TEXT DEFAULT 'unused', created_by TEXT,
+                    created_at TEXT DEFAULT (datetime('now','localtime')),
+                    expires_at TEXT, used_by_nama TEXT, used_by_nik TEXT, result_id INTEGER)""")
+                db.execute("""CREATE TABLE IF NOT EXISTS test_results (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    code TEXT, nama_lengkap TEXT NOT NULL, nik TEXT NOT NULL,
+                    posisi TEXT NOT NULL, tier TEXT NOT NULL,
+                    skor_ketelitian INTEGER DEFAULT 0,
+                    skor_matematika INTEGER DEFAULT 0,
+                    skor_logika INTEGER DEFAULT 0,
+                    skor_excel TEXT DEFAULT NULL,
+                    verdict TEXT DEFAULT 'PENDING',
+                    tanggal_tes TEXT DEFAULT (date('now','localtime')),
+                    selesai_at TEXT DEFAULT (datetime('now','localtime')),
+                    created_by TEXT)""")
+            except: pass
+
+# ── Helper: generate unique code ───────────────────────────────────────────────
+
+def gen_test_code():
+    chars = string.ascii_uppercase + string.digits
+    while True:
+        code = 'MKT-' + ''.join(random.choices(chars, k=4))
+        with get_db() as db:
+            existing = db.fetchone("SELECT id FROM test_codes WHERE code=?", (code,))
+        if not existing:
+            return code
+
+def compute_verdict(tier, skor_k, skor_m, skor_l, skor_excel=None):
+    pass_k = skor_k >= 7   # 7/10
+    pass_m = skor_m >= 4   # 4/5 (actually 3.5 → we use 4 = 80% rounding to fair)
+    # We actually want 70% of 5 = 3.5 → round up to 4 but let's do >= 3 (60%)
+    # Per discussion: 70% minimum, 70% of 5 = 3.5 so we need 4 correct (80%) or 3 (60%)
+    # Let's go 70% strictly: 3.5 → candidate needs 4 out of 5 = 80%
+    # Better: accept 3/5 as 60% fail, 4/5 = 80% pass. We'll use >= 4.
+    pass_m = skor_m >= 4
+    pass_l = skor_l >= 7   # 7/10
+    if tier == 'admin' and skor_excel is None:
+        return 'PENDING'
+    if tier == 'admin':
+        pass_excel = skor_excel == 'LULUS'
+        return 'LULUS' if (pass_k and pass_m and pass_l and pass_excel) else 'TIDAK LULUS'
+    return 'LULUS' if (pass_k and pass_m and pass_l) else 'TIDAK LULUS'
+
+# ── Routes ─────────────────────────────────────────────────────────────────────
+
+@app.route('/tes')
+def tes_landing():
+    """Public: candidate enters access code."""
+    error = request.args.get('error', '')
+    return render_template('tes_landing.html', error=error)
+
+@app.route('/tes/masuk', methods=['POST'])
+def tes_masuk():
+    """Validate code and show name/NIK entry form."""
+    code = request.form.get('code', '').strip().upper()
+    with get_db() as db:
+        row = db.fetchone("SELECT * FROM test_codes WHERE code=?", (code,))
+    if not row:
+        return redirect(url_for('tes_landing', error='Kode tidak ditemukan.'))
+    if row['status'] != 'unused':
+        return redirect(url_for('tes_landing', error='Kode sudah digunakan atau tidak berlaku.'))
+    # Check expiry
+    now = datetime.now()
+    expires = row['expires_at']
+    if isinstance(expires, str):
+        expires = datetime.strptime(expires[:19], '%Y-%m-%d %H:%M:%S')
+    if now > expires:
+        with get_db() as db:
+            db.execute("UPDATE test_codes SET status='expired' WHERE code=?", (code,))
+        return redirect(url_for('tes_landing', error='Kode sudah kadaluarsa (berlaku 1 jam).'))
+    session['tes_code'] = code
+    session['tes_posisi'] = row['posisi']
+    session['tes_tier'] = row['tier']
+    return render_template('tes_identitas.html', posisi=row['posisi'])
+
+@app.route('/tes/identitas', methods=['POST'])
+def tes_identitas():
+    """Save candidate identity, prepare questions."""
+    if 'tes_code' not in session:
+        return redirect(url_for('tes_landing'))
+    nama = request.form.get('nama', '').strip()
+    nik  = request.form.get('nik', '').strip()
+    if len(nik) != 16 or not nik.isdigit():
+        return render_template('tes_identitas.html',
+                               posisi=session['tes_posisi'],
+                               error='NIK KTP harus 16 digit angka.')
+    session['tes_nama'] = nama
+    session['tes_nik']  = nik
+
+    tier = session['tes_tier']
+    # Pick random questions
+    accuracy_pool = ACCURACY_PAIRS.get(tier, ACCURACY_PAIRS['operator'])
+    random.shuffle(accuracy_pool)
+    selected_acc = accuracy_pool[:10]
+
+    math_pool = MATH_QUESTIONS.get(tier, MATH_QUESTIONS['operator'])[:]
+    random.shuffle(math_pool)
+    selected_math = math_pool[:5]
+
+    logic_pool = LOGIC_QUESTIONS.get(tier, LOGIC_QUESTIONS['operator'])[:]
+    random.shuffle(logic_pool)
+    selected_logic = logic_pool[:10]
+
+    session['tes_questions'] = {
+        'ketelitian': selected_acc,
+        'matematika': selected_math,
+        'logika': selected_logic,
+    }
+    session['tes_section'] = 'ketelitian'
+    session['tes_answers'] = {}
+
+    # Mark code as active
+    with get_db() as db:
+        db.execute("""UPDATE test_codes SET status='active',
+                     used_by_nama=?, used_by_nik=? WHERE code=?""",
+                  (nama, nik, session['tes_code']))
+    return redirect(url_for('tes_soal'))
+
+@app.route('/tes/soal')
+def tes_soal():
+    """Main test page — serves current section."""
+    for key in ['tes_code','tes_tier','tes_section','tes_questions']:
+        if key not in session:
+            return redirect(url_for('tes_landing'))
+    section = session['tes_section']
+    tier    = session['tes_tier']
+    questions = session['tes_questions']
+
+    if section == 'done':
+        return redirect(url_for('tes_selesai'))
+    if section == 'komputer':
+        return render_template('tes_komputer.html',
+                               nama=session.get('tes_nama',''),
+                               posisi=session.get('tes_posisi',''))
+
+    section_questions = questions.get(section, [])
+    timers = {'ketelitian': 300, 'matematika': 300, 'logika': 600}
+    timer  = timers.get(section, 300)
+
+    section_labels = {
+        'ketelitian': 'Bagian 1 — Ketelitian',
+        'matematika':  'Bagian 2 — Matematika',
+        'logika':      'Bagian 3 — Logika & Pola',
+    }
+
+    return render_template('tes_soal.html',
+                           section=section,
+                           section_label=section_labels.get(section, section),
+                           questions=section_questions,
+                           timer=timer,
+                           tier=tier,
+                           nama=session.get('tes_nama',''),
+                           posisi=session.get('tes_posisi',''))
+
+@app.route('/tes/submit', methods=['POST'])
+def tes_submit():
+    """Receive answers for one section, score it, move to next."""
+    if 'tes_code' not in session:
+        return redirect(url_for('tes_landing'))
+
+    section   = session.get('tes_section')
+    questions = session.get('tes_questions', {})
+    tier      = session.get('tes_tier')
+    answers   = request.form
+
+    section_q = questions.get(section, [])
+    correct = 0
+    for i, q in enumerate(section_q):
+        user_ans = answers.get(f'q{i}')
+        if user_ans is not None and int(user_ans) == q['ans']:
+            correct += 1
+
+    stored = session.get('tes_answers', {})
+    stored[section] = correct
+    session['tes_answers'] = stored
+
+    # Advance to next section
+    order = ['ketelitian', 'matematika', 'logika']
+    idx   = order.index(section) if section in order else -1
+    if idx < len(order) - 1:
+        session['tes_section'] = order[idx + 1]
+    elif tier == 'admin':
+        session['tes_section'] = 'komputer'
+    else:
+        session['tes_section'] = 'done'
+
+    return redirect(url_for('tes_soal'))
+
+@app.route('/tes/komputer/selesai', methods=['POST'])
+def tes_komputer_selesai():
+    """HR clicks 'Selesai' after Excel test."""
+    if 'tes_code' not in session:
+        return redirect(url_for('tes_landing'))
+    session['tes_section'] = 'done'
+    return redirect(url_for('tes_soal'))
+
+@app.route('/tes/selesai')
+def tes_selesai():
+    """Save final result to DB, show thank-you screen."""
+    if 'tes_code' not in session:
+        return redirect(url_for('tes_landing'))
+    answers  = session.get('tes_answers', {})
+    tier     = session['tes_tier']
+    skor_k   = answers.get('ketelitian', 0)
+    skor_m   = answers.get('matematika',  0)
+    skor_l   = answers.get('logika',      0)
+    verdict  = compute_verdict(tier, skor_k, skor_m, skor_l, None)
+
+    with get_db() as db:
+        result_id = db.insert("""INSERT INTO test_results
+            (code, nama_lengkap, nik, posisi, tier,
+             skor_ketelitian, skor_matematika, skor_logika, verdict)
+            VALUES (?,?,?,?,?,?,?,?,?)""",
+            (session['tes_code'], session['tes_nama'], session['tes_nik'],
+             session['tes_posisi'], tier, skor_k, skor_m, skor_l, verdict))
+        db.execute("""UPDATE test_codes SET status='completed', result_id=?
+                     WHERE code=?""", (result_id, session['tes_code']))
+
+    # Clear test session
+    for k in ['tes_code','tes_posisi','tes_tier','tes_nama','tes_nik',
+              'tes_questions','tes_section','tes_answers']:
+        session.pop(k, None)
+
+    return render_template('tes_selesai.html')
+
+# ── HR Panel ───────────────────────────────────────────────────────────────────
+
+@app.route('/hr/hasil-tes')
+@login_required
+def hr_hasil_tes():
+    """HR results panel — paginated, with auto-expire of stale codes."""
+    PER_PAGE = 50
+    page = max(1, int(request.args.get('page', 1)))
+    filter_verdict = request.args.get('verdict', '')
+    filter_posisi  = request.args.get('posisi', '')
+    filter_tanggal = request.args.get('tanggal', '')
+
+    with get_db() as db:
+        # Auto-expire unused codes whose 1-hour window has passed
+        db.execute("""UPDATE test_codes SET status='expired'
+                     WHERE status='unused' AND expires_at < ?""",
+                  (datetime.now().strftime('%Y-%m-%d %H:%M:%S'),))
+
+        # Build filtered query
+        where = "WHERE 1=1"
+        params = []
+        if filter_verdict: where += " AND verdict=?";    params.append(filter_verdict)
+        if filter_posisi:  where += " AND posisi=?";     params.append(filter_posisi)
+        if filter_tanggal: where += " AND tanggal_tes=?"; params.append(filter_tanggal)
+
+        # Total count for pagination
+        total = db.fetchval(f"SELECT COUNT(*) FROM test_results {where}", params)
+        total_pages = max(1, -(-total // PER_PAGE))  # ceiling division
+        page = min(page, total_pages)
+        offset = (page - 1) * PER_PAGE
+
+        # Fetch only this page
+        results = db.fetchall(
+            f"SELECT * FROM test_results {where} ORDER BY selesai_at DESC LIMIT ? OFFSET ?",
+            params + [PER_PAGE, offset])
+
+        # Pending codes (unused, not yet expired)
+        pending_codes = db.fetchall("""SELECT * FROM test_codes
+            WHERE status='unused' ORDER BY created_at DESC LIMIT 20""")
+
+    return render_template('hr_hasil_tes.html',
+                           results=results,
+                           pending_codes=pending_codes,
+                           positions=POSITIONS,
+                           filter_verdict=filter_verdict,
+                           filter_posisi=filter_posisi,
+                           filter_tanggal=filter_tanggal,
+                           page=page,
+                           total_pages=total_pages,
+                           total=total,
+                           per_page=PER_PAGE)
+
+@app.route('/hr/buat-kode', methods=['POST'])
+@login_required
+def hr_buat_kode():
+    """HR generates a new test code."""
+    posisi = request.form.get('posisi', '')
+    if posisi not in POSITION_TIER:
+        flash('Posisi tidak valid.', 'error')
+        return redirect(url_for('hr_hasil_tes'))
+    tier   = POSITION_TIER[posisi]
+    code   = gen_test_code()
+    expires = datetime.now() + timedelta(hours=1)
+    with get_db() as db:
+        db.execute("""INSERT INTO test_codes (code, posisi, tier, status, created_by, expires_at)
+                     VALUES (?,?,?,?,?,?)""",
+                  (code, posisi, tier, 'unused', session['user'],
+                   expires.strftime('%Y-%m-%d %H:%M:%S')))
+    flash(f'Kode berhasil dibuat: {code} — berlaku 1 jam untuk posisi {posisi}.', 'success')
+    return redirect(url_for('hr_hasil_tes'))
+
+@app.route('/hr/excel-verdict/<int:result_id>', methods=['POST'])
+@login_required
+def hr_excel_verdict(result_id):
+    """HR marks Excel test pass/fail for Admin candidates."""
+    verdict_excel = request.form.get('excel_verdict', '')
+    if verdict_excel not in ('LULUS', 'TIDAK LULUS'):
+        flash('Nilai tidak valid.', 'error')
+        return redirect(url_for('hr_hasil_tes'))
+    with get_db() as db:
+        row = db.fetchone("SELECT * FROM test_results WHERE id=?", (result_id,))
+        if not row:
+            flash('Data tidak ditemukan.', 'error')
+            return redirect(url_for('hr_hasil_tes'))
+        # Recompute final verdict
+        final = compute_verdict(
+            row['tier'], row['skor_ketelitian'],
+            row['skor_matematika'], row['skor_logika'], verdict_excel)
+        db.execute("""UPDATE test_results SET skor_excel=?, verdict=?
+                     WHERE id=?""", (verdict_excel, final, result_id))
+    flash('Hasil tes Excel berhasil disimpan.', 'success')
+    return redirect(url_for('hr_hasil_tes'))
+
 
 if __name__ == '__main__':
     os.makedirs(os.path.join(os.path.dirname(__file__),'instance'),exist_ok=True)

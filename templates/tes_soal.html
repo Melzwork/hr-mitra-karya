@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ section_label }} — Tes Kandidat</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#F5F4F0;min-height:100vh;padding-bottom:5rem}
+.topbar{background:#1A1916;color:#F5F4F0;padding:.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;flex-direction:column;gap:2px}
+.topbar-title{font-size:13px;font-weight:500}
+.topbar-sub{font-size:11px;color:#9B9A94}
+.timer-wrap{display:flex;align-items:center;gap:8px}
+.timer{font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:#F5F4F0;transition:color .3s}
+.timer.warning{color:#F0C880}
+.timer.danger{color:#F09595;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.timer-label{font-size:11px;color:#9B9A94}
+.container{max-width:680px;margin:0 auto;padding:2rem 1.25rem}
+.section-info{background:#fff;border:1px solid #E0DED6;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between}
+.section-name{font-size:15px;font-weight:500;color:#1A1916}
+.section-count{font-size:13px;color:#6B6A64;font-family:'DM Mono',monospace}
+.progress{height:3px;background:#E0DED6;border-radius:2px;margin-bottom:1.5rem}
+.progress-fill{height:100%;background:#1A1916;border-radius:2px;transition:width .3s}
+.q-card{background:#fff;border:1px solid #E0DED6;border-radius:10px;padding:1.25rem;margin-bottom:10px}
+.q-num{font-size:11px;font-family:'DM Mono',monospace;color:#9B9A94;margin-bottom:8px}
+.q-text{font-size:15px;color:#1A1916;line-height:1.55;margin-bottom:12px}
+.q-data{background:#F5F4F0;border:1px solid #E0DED6;border-radius:6px;padding:10px 14px;font-size:13px;font-family:'DM Mono',monospace;color:#6B6A64;margin-bottom:12px;line-height:2;word-break:break-all}
+.q-data span.diff{background:#FEF3E2;color:#7A4A00;border-radius:3px;padding:0 2px}
+.options{display:flex;flex-direction:column;gap:6px}
+.opt{display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:7px;border:1px solid #E0DED6;cursor:pointer;font-size:14px;color:#1A1916;transition:all .12s;background:transparent;text-align:left;width:100%;font-family:'DM Sans',sans-serif}
+.opt:hover{border-color:#C8C6BC;background:#F5F4F0}
+.opt.selected{border-color:#A0B4CC;background:#E8EFF8;color:#1A3D6B}
+.opt-radio{width:14px;height:14px;border-radius:50%;border:1.5px solid #C8C6BC;flex-shrink:0}
+.opt.selected .opt-radio{border-color:#1A3D6B;position:relative}
+.opt.selected .opt-radio::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:#1A3D6B}
+/* Accuracy section */
+.acc-pair{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.acc-row{background:#F5F4F0;border:1px solid #E0DED6;border-radius:6px;padding:10px 14px}
+.acc-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#9B9A94;margin-bottom:4px}
+.acc-code{font-family:'DM Mono',monospace;font-size:14px;color:#1A1916;letter-spacing:.04em;word-break:break-all}
+/* Pattern boxes */
+.pattern-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.pbox{width:44px;height:44px;border-radius:6px;border:1px solid #E0DED6;background:#F5F4F0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:500;font-family:'DM Mono',monospace;color:#1A1916}
+.pbox.q{border-color:#A0B4CC;background:#E8EFF8;color:#1A3D6B}
+.pattern-opts{display:flex;gap:8px;flex-wrap:wrap}
+.popt{padding:8px 18px;border-radius:7px;border:1px solid #E0DED6;cursor:pointer;font-size:14px;font-family:'DM Mono',monospace;font-weight:500;color:#1A1916;background:transparent;transition:all .12s}
+.popt:hover{border-color:#C8C6BC;background:#F5F4F0}
+.popt.selected{border-color:#A0B4CC;background:#E8EFF8;color:#1A3D6B}
+/* Bottom submit bar */
+.submit-bar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #E0DED6;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.answered-count{font-size:13px;color:#6B6A64;font-family:'DM Mono',monospace}
+.btn-submit{padding:11px 28px;background:#1A1916;color:#F5F4F0;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s}
+.btn-submit:hover{opacity:.85}
+.btn-submit:disabled{opacity:.4;cursor:not-allowed}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="topbar-title">{{ section_label }}</span>
+    <span class="topbar-sub">{{ nama }} — {{ posisi }}</span>
+  </div>
+  <div class="timer-wrap">
+    <div>
+      <div class="timer-label">Waktu tersisa</div>
+      <div class="timer" id="timerDisplay">{{ '%02d:%02d' % (timer // 60, timer % 60) }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="progress">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+  </div>
+
+  <form method="POST" action="/tes/submit" id="testForm">
+    {% for i, q in enumerate(questions) %}
+
+    <div class="q-card">
+      <p class="q-num">SOAL {{ i + 1 }} / {{ questions|length }}</p>
+
+      {% if section == 'ketelitian' %}
+        <p class="q-text">Bandingkan dua kode berikut. Apakah sama atau berbeda?</p>
+        <div class="acc-pair">
+          <div class="acc-row">
+            <div class="acc-label">Kode A</div>
+            <div class="acc-code">{{ q[0] }}</div>
+          </div>
+          <div class="acc-row">
+            <div class="acc-label">Kode B</div>
+            <div class="acc-code">{{ q[1] }}</div>
+          </div>
+        </div>
+        <div class="options">
+          <button type="button" class="opt" onclick="selectOpt(this, '{{ i }}', 0)">
+            <span class="opt-radio"></span>Sama
+          </button>
+          <button type="button" class="opt" onclick="selectOpt(this, '{{ i }}', 1)">
+            <span class="opt-radio"></span>Berbeda
+          </button>
+        </div>
+        <input type="hidden" name="q{{ i }}" id="ans{{ i }}">
+
+      {% elif q.get('type') == 'seq' or q.get('type') == 'logic' %}
+        <p class="q-text">{{ q['q'] }}</p>
+        <div class="options">
+          {% for j, opt in enumerate(q['opts']) %}
+          <button type="button" class="opt" onclick="selectOpt(this, '{{ i }}', {{ j }})">
+            <span class="opt-radio"></span>{{ opt }}
+          </button>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="q{{ i }}" id="ans{{ i }}">
+
+      {% elif q.get('type') in ('matrix', 'raven') %}
+        <p class="q-text">{{ q['q'] }}</p>
+        <div class="pattern-opts" style="margin-bottom:12px">
+          {% for j, opt in enumerate(q['opts']) %}
+          <button type="button" class="popt" onclick="selectPopt(this, '{{ i }}', {{ j }})">{{ opt }}</button>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="q{{ i }}" id="ans{{ i }}">
+
+      {% else %}
+        <p class="q-text">{{ q['q'] }}</p>
+        <div class="options">
+          {% for j, opt in enumerate(q['opts']) %}
+          <button type="button" class="opt" onclick="selectOpt(this, '{{ i }}', {{ j }})">
+            <span class="opt-radio"></span>{{ opt }}
+          </button>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="q{{ i }}" id="ans{{ i }}">
+      {% endif %}
+    </div>
+
+    {% endfor %}
+  </form>
+</div>
+
+<div class="submit-bar">
+  <span class="answered-count" id="answeredCount">0 / {{ questions|length }} dijawab</span>
+  <button class="btn-submit" onclick="submitTest()" id="submitBtn">Selesaikan Bagian Ini →</button>
+</div>
+
+<script>
+var totalQ = {{ questions|length }};
+var answered = {};
+var timeLeft = {{ timer }};
+var timerEl = document.getElementById('timerDisplay');
+var submitBtn = document.getElementById('submitBtn');
+
+function updateProgress() {
+  var count = Object.keys(answered).length;
+  document.getElementById('answeredCount').textContent = count + ' / ' + totalQ + ' dijawab';
+  document.getElementById('progressFill').style.width = Math.round(count / totalQ * 100) + '%';
+}
+
+function selectOpt(btn, qIdx, optIdx) {
+  var card = btn.closest('.q-card');
+  card.querySelectorAll('.opt').forEach(function(b) { b.classList.remove('selected'); });
+  btn.classList.add('selected');
+  document.getElementById('ans' + qIdx).value = optIdx;
+  answered[qIdx] = optIdx;
+  updateProgress();
+}
+
+function selectPopt(btn, qIdx, optIdx) {
+  var card = btn.closest('.q-card');
+  card.querySelectorAll('.popt').forEach(function(b) { b.classList.remove('selected'); });
+  btn.classList.add('selected');
+  document.getElementById('ans' + qIdx).value = optIdx;
+  answered[qIdx] = optIdx;
+  updateProgress();
+}
+
+function submitTest() {
+  document.getElementById('testForm').submit();
+}
+
+// Timer
+var timerInterval = setInterval(function() {
+  timeLeft--;
+  var m = Math.floor(timeLeft / 60);
+  var s = timeLeft % 60;
+  timerEl.textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  if (timeLeft <= 60) timerEl.className = 'timer danger';
+  else if (timeLeft <= 120) timerEl.className = 'timer warning';
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    timerEl.textContent = '00:00';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Waktu habis — melanjutkan...';
+    setTimeout(function() { submitTest(); }, 1500);
+  }
+}, 1000);
+
+// Prevent back navigation
+history.pushState(null, null, location.href);
+window.onpopstate = function() { history.pushState(null, null, location.href); };
+</script>
+</body>
+</html>

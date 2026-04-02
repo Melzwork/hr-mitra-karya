@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Diri — Tes Kandidat</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#F5F4F0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem}
+.card{background:#fff;border:1px solid #E0DED6;border-radius:16px;padding:2.5rem 2rem;width:100%;max-width:460px}
+.logo{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#9B9A94;margin-bottom:2rem;text-align:center}
+h1{font-size:20px;font-weight:500;color:#1A1916;margin-bottom:.4rem}
+.posisi-badge{display:inline-block;padding:4px 12px;background:#E8EFF8;color:#1A3D6B;border-radius:6px;font-size:12px;font-weight:500;margin-bottom:1.5rem}
+.field{margin-bottom:1.25rem}
+label{display:block;font-size:12px;font-weight:500;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+input{width:100%;padding:12px 14px;border:1px solid #E0DED6;border-radius:8px;font-size:15px;font-family:'DM Sans',sans-serif;color:#1A1916;background:#fff;outline:none;transition:border-color .15s}
+input:focus{border-color:#A0A09A}
+input[name=nik]{font-family:'DM Mono',monospace;letter-spacing:.05em}
+.counter{font-size:11px;color:#9B9A94;text-align:right;margin-top:4px;font-family:'DM Mono',monospace}
+.btn{width:100%;padding:13px;background:#1A1916;color:#F5F4F0;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:.5rem;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.error{background:#FAEAEA;border:1px solid #D4A0A0;color:#8B1F1F;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:1.25rem}
+.info{background:#E8F5EE;border:1px solid #7BBDA0;color:#1D6B3E;border-radius:8px;padding:12px 14px;font-size:13px;margin-bottom:1.5rem;line-height:1.6}
+.info strong{display:block;margin-bottom:4px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="card">
+  <p class="logo">PT Mitra Karya Texindo</p>
+  <h1>Data Diri Kandidat</h1>
+  <span class="posisi-badge">Posisi: {{ posisi }}</span>
+  <div class="info">
+    <strong>Sebelum memulai, perhatikan:</strong>
+    Tes terdiri dari 3 bagian dengan batas waktu per bagian.<br>
+    Waktu tidak bisa dijeda. Jawab dengan jujur dan mandiri.
+  </div>
+  {% if error %}
+  <div class="error">{{ error }}</div>
+  {% endif %}
+  <form method="POST" action="/tes/identitas">
+    <div class="field">
+      <label>Nama Lengkap (sesuai KTP)</label>
+      <input type="text" name="nama" placeholder="Masukkan nama lengkap" required maxlength="200" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>NIK KTP (16 digit)</label>
+      <input type="text" name="nik" placeholder="3201XXXXXXXXXXXX" required maxlength="16" minlength="16" pattern="\d{16}" id="nikInput" autocomplete="off">
+      <p class="counter"><span id="nikCount">0</span>/16</p>
+    </div>
+    <button type="submit" class="btn">Mulai Tes →</button>
+  </form>
+</div>
+<script>
+var nikInput = document.getElementById('nikInput');
+var nikCount = document.getElementById('nikCount');
+nikInput.addEventListener('input', function() {
+  this.value = this.value.replace(/\D/g,'');
+  nikCount.textContent = this.value.length;
+});
+</script>
+</body>
+</html>

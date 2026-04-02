@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+{% block title %}Hasil Tes Kandidat{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Hasil Tes Kandidat</h1>
+  <p class="text-muted">Kelola kode tes dan lihat hasil seleksi kandidat</p>
+</div>
+
+<!-- Flash messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+  <div class="alert alert-{{ cat }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<!-- Generate Code -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h2>Buat Kode Tes Baru</h2>
+    <span class="badge-info">Berlaku 1 jam</span>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="/hr/buat-kode" class="form-inline">
+      <div class="field-group">
+        <label>Posisi yang Dilamar</label>
+        <select name="posisi" required>
+          <option value="">-- Pilih Posisi --</option>
+          {% for pos in positions %}
+          <option value="{{ pos }}">{{ pos }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Buat Kode</button>
+    </form>
+    <p class="hint mt-2">Kode akan otomatis menentukan jenis tes berdasarkan posisi. Berikan kode kepada kandidat beserta link: <strong>{{ request.host_url }}tes</strong></p>
+  </div>
+</div>
+
+<!-- Pending Codes -->
+{% if pending_codes %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2>Kode Aktif (Belum Digunakan)</h2>
+  </div>
+  <div class="card-body p-0">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Kode</th>
+          <th>Posisi</th>
+          <th>Tier</th>
+          <th>Dibuat</th>
+          <th>Kadaluarsa</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in pending_codes %}
+        <tr>
+          <td><code style="font-size:14px;font-weight:600;letter-spacing:.05em">{{ c.code }}</code></td>
+          <td>{{ c.posisi }}</td>
+          <td><span class="badge-tier-{{ c.tier }}">{{ c.tier }}</span></td>
+          <td>{{ c.created_at|datestr if c.created_at else '—' }}</td>
+          <td>{{ c.expires_at|datestr if c.expires_at else '—' }}</td>
+          <td><span class="status-badge status-unused">Belum digunakan</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Filters -->
+<div class="card mb-3">
+  <div class="card-body">
+    <form method="GET" class="form-inline" style="flex-wrap:wrap;gap:12px">
+      <div class="field-group">
+        <label>Posisi</label>
+        <select name="posisi">
+          <option value="">Semua Posisi</option>
+          {% for pos in positions %}
+          <option value="{{ pos }}" {{ 'selected' if filter_posisi==pos }}>{{ pos }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Hasil</label>
+        <select name="verdict">
+          <option value="">Semua</option>
+          <option value="LULUS" {{ 'selected' if filter_verdict=='LULUS' }}>LULUS</option>
+          <option value="TIDAK LULUS" {{ 'selected' if filter_verdict=='TIDAK LULUS' }}>TIDAK LULUS</option>
+          <option value="PENDING" {{ 'selected' if filter_verdict=='PENDING' }}>PENDING</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Tanggal</label>
+        <input type="date" name="tanggal" value="{{ filter_tanggal }}">
+      </div>
+      <button type="submit" class="btn btn-secondary">Filter</button>
+      <a href="/hr/hasil-tes" class="btn btn-ghost">Reset</a>
+    </form>
+  </div>
+</div>
+
+<!-- Results Table -->
+<div class="card">
+  <div class="card-header">
+    <h2>Hasil Tes</h2>
+    <span class="badge-info">{{ total }} kandidat &mdash; hal. {{ page }}/{{ total_pages }}</span>
+  </div>
+  <div class="card-body p-0">
+    {% if results %}
+    <div style="overflow-x:auto">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nama</th>
+          <th>NIK</th>
+          <th>Posisi</th>
+          <th>Ketelitian<br><small style="font-weight:400;color:#9B9A94">/10 (min 7)</small></th>
+          <th>Matematika<br><small style="font-weight:400;color:#9B9A94">/5 (min 4)</small></th>
+          <th>Logika<br><small style="font-weight:400;color:#9B9A94">/10 (min 7)</small></th>
+          <th>Excel</th>
+          <th>Hasil</th>
+          <th>Tanggal</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in results %}
+        <tr>
+          <td style="font-weight:500">{{ r.nama_lengkap }}</td>
+          <td><code style="font-size:12px">{{ r.nik }}</code></td>
+          <td>{{ r.posisi }}</td>
+          <td class="{{ 'score-pass' if r.skor_ketelitian >= 7 else 'score-fail' }}">
+            {{ r.skor_ketelitian }}/10
+          </td>
+          <td class="{{ 'score-pass' if r.skor_matematika >= 4 else 'score-fail' }}">
+            {{ r.skor_matematika }}/5
+          </td>
+          <td class="{{ 'score-pass' if r.skor_logika >= 7 else 'score-fail' }}">
+            {{ r.skor_logika }}/10
+          </td>
+          <td>
+            {% if r.tier == 'admin' %}
+              {% if r.skor_excel %}
+                <span class="{{ 'badge-pass' if r.skor_excel == 'LULUS' else 'badge-fail' }}">{{ r.skor_excel }}</span>
+              {% else %}
+                <form method="POST" action="/hr/excel-verdict/{{ r.id }}" style="display:flex;gap:6px">
+                  <button type="submit" name="excel_verdict" value="LULUS" class="btn-xs btn-pass">LULUS</button>
+                  <button type="submit" name="excel_verdict" value="TIDAK LULUS" class="btn-xs btn-fail">TIDAK LULUS</button>
+                </form>
+              {% endif %}
+            {% else %}
+              <span style="color:#9B9A94;font-size:12px">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="verdict-badge verdict-{{ r.verdict|lower|replace(' ','_') }}">{{ r.verdict }}</span>
+          </td>
+          <td style="font-size:12px;color:#6B6A64">{{ r.tanggal_tes|datestr }}</td>
+          <td>
+            <button onclick="printCard({{ r.id }})" class="btn-xs btn-ghost-xs">Print</button>
+          </td>
+        </tr>
+        <!-- Print card (hidden) -->
+        <tr id="print-{{ r.id }}" style="display:none">
+          <td colspan="10">
+            <div class="print-card" id="card-{{ r.id }}">
+              <div class="print-header">PT Mitra Karya Texindo — Hasil Tes Kandidat</div>
+              <table class="print-table">
+                <tr><td>Nama</td><td><strong>{{ r.nama_lengkap }}</strong></td></tr>
+                <tr><td>NIK KTP</td><td>{{ r.nik }}</td></tr>
+                <tr><td>Posisi</td><td>{{ r.posisi }}</td></tr>
+                <tr><td>Tanggal Tes</td><td>{{ r.tanggal_tes|datestr }}</td></tr>
+              </table>
+              <div class="print-scores">
+                <div class="print-score-box {{ 'pass' if r.skor_ketelitian >= 7 else 'fail' }}">
+                  <div class="pscore-val">{{ r.skor_ketelitian }}/10</div>
+                  <div class="pscore-lbl">Ketelitian</div>
+                  <div class="pscore-status">{{ 'LULUS' if r.skor_ketelitian >= 7 else 'TIDAK LULUS' }}</div>
+                </div>
+                <div class="print-score-box {{ 'pass' if r.skor_matematika >= 4 else 'fail' }}">
+                  <div class="pscore-val">{{ r.skor_matematika }}/5</div>
+                  <div class="pscore-lbl">Matematika</div>
+                  <div class="pscore-status">{{ 'LULUS' if r.skor_matematika >= 4 else 'TIDAK LULUS' }}</div>
+                </div>
+                <div class="print-score-box {{ 'pass' if r.skor_logika >= 7 else 'fail' }}">
+                  <div class="pscore-val">{{ r.skor_logika }}/10</div>
+                  <div class="pscore-lbl">Logika</div>
+                  <div class="pscore-status">{{ 'LULUS' if r.skor_logika >= 7 else 'TIDAK LULUS' }}</div>
+                </div>
+                {% if r.tier == 'admin' %}
+                <div class="print-score-box {{ 'pass' if r.skor_excel == 'LULUS' else 'fail' }}">
+                  <div class="pscore-val">—</div>
+                  <div class="pscore-lbl">Excel</div>
+                  <div class="pscore-status">{{ r.skor_excel or 'PENDING' }}</div>
+                </div>
+                {% endif %}
+              </div>
+              <div class="print-verdict {{ 'pass' if r.verdict == 'LULUS' else 'fail' }}">
+                {{ r.verdict }}
+              </div>
+              <div class="print-footer">Dicetak dari Sistem HR — PT Mitra Karya Texindo</div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div style="padding:3rem;text-align:center;color:#9B9A94;font-size:14px">
+      Belum ada hasil tes. Buat kode tes terlebih dahulu dan berikan kepada kandidat.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div class="pagination-row">
+  {% set base_args = dict(verdict=filter_verdict, posisi=filter_posisi, tanggal=filter_tanggal) %}
+  {% if page > 1 %}
+  <a href="?page={{ page - 1 }}&verdict={{ filter_verdict }}&posisi={{ filter_posisi }}&tanggal={{ filter_tanggal }}" class="btn btn-ghost">&larr; Sebelumnya</a>
+  {% else %}
+  <span class="btn btn-ghost" style="opacity:.4;cursor:default">&larr; Sebelumnya</span>
+  {% endif %}
+  <span class="page-info">Halaman {{ page }} dari {{ total_pages }} &nbsp;&bull;&nbsp; {{ total }} total kandidat</span>
+  {% if page < total_pages %}
+  <a href="?page={{ page + 1 }}&verdict={{ filter_verdict }}&posisi={{ filter_posisi }}&tanggal={{ filter_tanggal }}" class="btn btn-ghost">Selanjutnya &rarr;</a>
+  {% else %}
+  <span class="btn btn-ghost" style="opacity:.4;cursor:default">Selanjutnya &rarr;</span>
+  {% endif %}
+</div>
+{% endif %}
+
+<style>
+.page-header{margin-bottom:1.5rem}
+.page-header h1{font-size:22px;font-weight:500;color:#1A1916}
+.text-muted{font-size:14px;color:#6B6A64;margin-top:4px}
+.card{background:#fff;border:1px solid #E0DED6;border-radius:12px;margin-bottom:1rem}
+.card-header{padding:1rem 1.25rem;border-bottom:1px solid #F0EFE9;display:flex;align-items:center;justify-content:space-between}
+.card-header h2{font-size:15px;font-weight:500;color:#1A1916}
+.card-body{padding:1.25rem}
+.card-body.p-0{padding:0}
+.mb-4{margin-bottom:1.5rem}
+.mb-3{margin-bottom:1rem}
+.mt-2{margin-top:.5rem}
+.badge-info{background:#E8EFF8;color:#1A3D6B;border-radius:6px;font-size:12px;font-weight:500;padding:3px 10px}
+.form-inline{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.field-group{display:flex;flex-direction:column;gap:5px}
+.field-group label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6A64}
+.field-group select,.field-group input{padding:8px 12px;border:1px solid #E0DED6;border-radius:7px;font-size:13px;font-family:'DM Sans',sans-serif;color:#1A1916;background:#fff;outline:none}
+.hint{font-size:12px;color:#9B9A94;line-height:1.6}
+.btn{padding:9px 20px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;border:1px solid transparent;transition:opacity .15s}
+.btn-primary{background:#1A1916;color:#F5F4F0;border-color:#1A1916}
+.btn-primary:hover{opacity:.85}
+.btn-secondary{background:#F5F4F0;color:#1A1916;border-color:#E0DED6}
+.btn-ghost{background:transparent;color:#6B6A64;border-color:#E0DED6;text-decoration:none;display:inline-flex;align-items:center}
+.btn-xs{padding:5px 10px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;border:1px solid transparent}
+.btn-pass{background:#E8F5EE;color:#1D6B3E;border-color:#7BBDA0}
+.btn-fail{background:#FAEAEA;color:#8B1F1F;border-color:#D4A0A0}
+.btn-ghost-xs{background:transparent;color:#6B6A64;border:1px solid #E0DED6;padding:5px 10px;border-radius:5px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif}
+.table{width:100%;border-collapse:collapse}
+.table th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#9B9A94;padding:10px 14px;border-bottom:1px solid #F0EFE9;text-align:left;white-space:nowrap}
+.table td{font-size:13px;color:#1A1916;padding:10px 14px;border-bottom:1px solid #F5F4F0;vertical-align:middle}
+.table tr:last-child td{border-bottom:none}
+.score-pass{color:#1D6B3E;font-weight:500}
+.score-fail{color:#8B1F1F;font-weight:500}
+.badge-pass{background:#E8F5EE;color:#1D6B3E;border-radius:5px;font-size:12px;font-weight:500;padding:3px 9px}
+.badge-fail{background:#FAEAEA;color:#8B1F1F;border-radius:5px;font-size:12px;font-weight:500;padding:3px 9px}
+.verdict-badge{border-radius:6px;font-size:12px;font-weight:600;padding:4px 10px}
+.verdict-lulus{background:#E8F5EE;color:#1D6B3E}
+.verdict-tidak_lulus{background:#FAEAEA;color:#8B1F1F}
+.verdict-pending{background:#FEF3E2;color:#7A4A00}
+.status-badge{border-radius:5px;font-size:11px;font-weight:500;padding:3px 8px}
+.status-unused{background:#E8EFF8;color:#1A3D6B}
+.badge-tier-operator{background:#F0EFE9;color:#5F5E5A;border-radius:5px;font-size:11px;font-weight:500;padding:3px 8px}
+.badge-tier-staff{background:#E8EFF8;color:#1A3D6B;border-radius:5px;font-size:11px;font-weight:500;padding:3px 8px}
+.badge-tier-admin{background:#FEF3E2;color:#7A4A00;border-radius:5px;font-size:11px;font-weight:500;padding:3px 8px}
+.alert{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:1rem}
+.alert-success{background:#E8F5EE;color:#1D6B3E;border:1px solid #7BBDA0}
+.alert-error{background:#FAEAEA;color:#8B1F1F;border:1px solid #D4A0A0}
+/* Print card styles */
+.print-card{border:2px solid #1A1916;border-radius:8px;padding:1.5rem;margin:1rem 0;background:#fff;max-width:500px}
+.print-header{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#9B9A94;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid #E0DED6}
+.print-table{width:100%;border-collapse:collapse;margin-bottom:1rem;font-size:13px}
+.print-table td{padding:5px 0;color:#1A1916}
+.print-table td:first-child{color:#6B6A64;width:100px}
+.print-scores{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
+.print-score-box{flex:1;min-width:80px;border-radius:8px;padding:.75rem;text-align:center;border:1px solid}
+.print-score-box.pass{background:#E8F5EE;border-color:#7BBDA0}
+.print-score-box.fail{background:#FAEAEA;border-color:#D4A0A0}
+.pscore-val{font-size:18px;font-weight:600;font-family:'DM Mono',monospace}
+.pscore-lbl{font-size:10px;color:#6B6A64;margin:2px 0}
+.pscore-status{font-size:10px;font-weight:600}
+.print-score-box.pass .pscore-val,.print-score-box.pass .pscore-status{color:#1D6B3E}
+.print-score-box.fail .pscore-val,.print-score-box.fail .pscore-status{color:#8B1F1F}
+.print-verdict{text-align:center;font-size:20px;font-weight:700;letter-spacing:.05em;padding:12px;border-radius:8px;margin-bottom:.75rem}
+.print-verdict.pass{background:#E8F5EE;color:#1D6B3E}
+.print-verdict.fail{background:#FAEAEA;color:#8B1F1F}
+.print-footer{font-size:10px;color:#9B9A94;text-align:center}
+.pagination-row{display:flex;align-items:center;justify-content:space-between;padding:1rem 0;flex-wrap:wrap;gap:10px}
+.page-info{font-size:13px;color:#6B6A64}
+@media print{
+  .no-print{display:none!important}
+  .print-card{border:2px solid #000;page-break-inside:avoid}
+}
+</style>
+
+<script>
+function printCard(id) {
+  var cardEl = document.getElementById('card-' + id);
+  var printWin = window.open('', '_blank', 'width=600,height=700');
+  printWin.document.write('<html><head><title>Hasil Tes</title>');
+  printWin.document.write('<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">');
+  printWin.document.write('<style>');
+  printWin.document.write('body{font-family:DM Sans,sans-serif;padding:2rem;background:#fff}');
+  printWin.document.write('.print-header{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#666;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid #ddd}');
+  printWin.document.write('.print-table{width:100%;border-collapse:collapse;margin-bottom:1rem;font-size:13px}');
+  printWin.document.write('.print-table td{padding:5px 0}.print-table td:first-child{color:#666;width:100px}');
+  printWin.document.write('.print-scores{display:flex;gap:8px;margin-bottom:1rem}');
+  printWin.document.write('.print-score-box{flex:1;border-radius:8px;padding:.75rem;text-align:center;border:1px solid}');
+  printWin.document.write('.print-score-box.pass{background:#E8F5EE;border-color:#7BBDA0}.print-score-box.fail{background:#FAEAEA;border-color:#D4A0A0}');
+  printWin.document.write('.pscore-val{font-size:18px;font-weight:600;font-family:DM Mono,monospace}.pscore-lbl{font-size:10px;color:#666;margin:2px 0}.pscore-status{font-size:10px;font-weight:600}');
+  printWin.document.write('.print-score-box.pass .pscore-val,.print-score-box.pass .pscore-status{color:#1D6B3E}');
+  printWin.document.write('.print-score-box.fail .pscore-val,.print-score-box.fail .pscore-status{color:#8B1F1F}');
+  printWin.document.write('.print-verdict{text-align:center;font-size:20px;font-weight:700;letter-spacing:.05em;padding:12px;border-radius:8px;margin-bottom:.75rem}');
+  printWin.document.write('.print-verdict.pass{background:#E8F5EE;color:#1D6B3E}.print-verdict.fail{background:#FAEAEA;color:#8B1F1F}');
+  printWin.document.write('.print-footer{font-size:10px;color:#999;text-align:center}');
+  printWin.document.write('</style></head><body>');
+  printWin.document.write(cardEl.outerHTML);
+  printWin.document.write('</body></html>');
+  printWin.document.close();
+  setTimeout(function() { printWin.print(); }, 500);
+}
+</script>
+{% endblock %}
