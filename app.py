@@ -1271,6 +1271,7 @@ def init_test_tables():
     if PG:
         url = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
         conn = psycopg2.connect(url)
+        conn.autocommit = True  # DDL statements need autocommit in PostgreSQL
         cur = conn.cursor()
         cur.execute("""
         CREATE TABLE IF NOT EXISTS test_codes (
@@ -1304,7 +1305,15 @@ def init_test_tables():
             selesai_at TIMESTAMP DEFAULT NOW(),
             created_by VARCHAR(100)
         )""")
-        conn.commit()
+        # Add new columns if upgrading existing DB
+        for col, defn in [
+            ("questions_json", "TEXT"),
+            ("used_by_nama", "VARCHAR(200)"),
+            ("used_by_nik", "VARCHAR(20)"),
+            ("result_id", "INTEGER"),
+        ]:
+            try: cur.execute(f"ALTER TABLE test_codes ADD COLUMN {col} {defn}")
+            except: pass
         conn.close()
     else:
         with DB() as db:
@@ -1407,7 +1416,7 @@ def tes_identitas():
 
     tier = session['tes_tier']
     # Pick random questions
-    accuracy_pool = ACCURACY_PAIRS.get(tier, ACCURACY_PAIRS['operator'])
+    accuracy_pool = list(ACCURACY_PAIRS.get(tier, ACCURACY_PAIRS['operator']))
     random.shuffle(accuracy_pool)
     selected_acc = accuracy_pool[:10]
 
@@ -1672,6 +1681,29 @@ with app.app_context():
         print("Test tables initialized successfully")
     except Exception as e:
         print(f"Warning: init_test_tables error: {e}")
+    # Always-run migrations for new columns on existing DBs
+    try:
+        if PG:
+            url = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+            import psycopg2 as _pg
+            _conn = _pg.connect(url)
+            _cur = _conn.cursor()
+            for _col, _defn in [
+                ("questions_json", "TEXT"),
+                ("used_by_nama", "VARCHAR(200)"),
+                ("used_by_nik", "VARCHAR(20)"),
+                ("result_id", "INTEGER"),
+                ("birth_place", "VARCHAR(100) NOT NULL DEFAULT ''"),
+            ]:
+                try: _cur.execute(f"ALTER TABLE test_codes ADD COLUMN {_col} {_defn}")
+                except: pass
+            try: _cur.execute("ALTER TABLE staff ADD COLUMN birth_place VARCHAR(100) NOT NULL DEFAULT ''")
+            except: pass
+            _conn.commit()
+            _conn.close()
+            print("Migrations applied successfully")
+    except Exception as e:
+        print(f"Warning: migration error: {e}")
 
 if __name__ == '__main__':
     os.makedirs(os.path.join(os.path.dirname(__file__),'instance'),exist_ok=True)
