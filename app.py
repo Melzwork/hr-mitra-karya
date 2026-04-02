@@ -16,6 +16,7 @@ else:
 
 app = Flask(__name__)
 app.jinja_env.globals.update(enumerate=enumerate)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.secret_key = os.environ.get('SECRET_KEY', 'hr_mitra_karya_2026_secret')
 
 # Custom Jinja2 filter: format date safely for both SQLite (string) and PostgreSQL (datetime)
@@ -1283,7 +1284,8 @@ def init_test_tables():
             expires_at TIMESTAMP,
             used_by_nama VARCHAR(200),
             used_by_nik VARCHAR(20),
-            result_id INTEGER
+            result_id INTEGER,
+            questions_json TEXT
         )""")
         cur.execute("""
         CREATE TABLE IF NOT EXISTS test_results (
@@ -1312,7 +1314,8 @@ def init_test_tables():
                     code TEXT UNIQUE NOT NULL, posisi TEXT NOT NULL, tier TEXT NOT NULL,
                     status TEXT DEFAULT 'unused', created_by TEXT,
                     created_at TEXT DEFAULT (datetime('now','localtime')),
-                    expires_at TEXT, used_by_nama TEXT, used_by_nik TEXT, result_id INTEGER)""")
+                    expires_at TEXT, used_by_nama TEXT, used_by_nik TEXT, result_id INTEGER,
+                    questions_json TEXT)""")
                 db.execute("""CREATE TABLE IF NOT EXISTS test_results (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     code TEXT, nama_lengkap TEXT NOT NULL, nik TEXT NOT NULL,
@@ -1325,6 +1328,8 @@ def init_test_tables():
                     tanggal_tes TEXT DEFAULT (date('now','localtime')),
                     selesai_at TEXT DEFAULT (datetime('now','localtime')),
                     created_by TEXT)""")
+            except: pass
+            try: db.execute("ALTER TABLE test_codes ADD COLUMN questions_json TEXT")
             except: pass
 
 # ── Helper: generate unique code ───────────────────────────────────────────────
@@ -1414,7 +1419,7 @@ def tes_identitas():
     random.shuffle(logic_pool)
     selected_logic = logic_pool[:10]
 
-    session['tes_questions'] = {
+    questions_data = {
         'ketelitian': selected_acc,
         'matematika': selected_math,
         'logika': selected_logic,
@@ -1422,22 +1427,25 @@ def tes_identitas():
     session['tes_section'] = 'ketelitian'
     session['tes_answers'] = {}
 
-    # Mark code as active
+    # Save questions to DB (avoids Flask session 4KB limit)
     with get_db() as db:
         db.execute("""UPDATE test_codes SET status='active',
-                     used_by_nama=?, used_by_nik=? WHERE code=?""",
-                  (nama, nik, session['tes_code']))
+                     used_by_nama=?, used_by_nik=?, questions_json=? WHERE code=?""",
+                  (nama, nik, json.dumps(questions_data, default=list), session['tes_code']))
     return redirect(url_for('tes_soal'))
 
 @app.route('/tes/soal')
 def tes_soal():
     """Main test page — serves current section."""
-    for key in ['tes_code','tes_tier','tes_section','tes_questions']:
+    for key in ['tes_code','tes_tier','tes_section']:
         if key not in session:
             return redirect(url_for('tes_landing'))
     section = session['tes_section']
     tier    = session['tes_tier']
-    questions = session['tes_questions']
+    # Load questions from DB (stored there to avoid session size limit)
+    with get_db() as db:
+        row = db.fetchone("SELECT questions_json FROM test_codes WHERE code=?", (session['tes_code'],))
+    questions = json.loads(row['questions_json']) if row and row['questions_json'] else {}
 
     if section == 'done':
         return redirect(url_for('tes_selesai'))
@@ -1472,16 +1480,33 @@ def tes_submit():
         return redirect(url_for('tes_landing'))
 
     section   = session.get('tes_section')
-    questions = session.get('tes_questions', {})
     tier      = session.get('tes_tier')
+    # Load questions from DB
+    with get_db() as db:
+        row = db.fetchone("SELECT questions_json FROM test_codes WHERE code=?", (session['tes_code'],))
+    questions = json.loads(row['questions_json']) if row and row['questions_json'] else {}
     answers   = request.form
 
     section_q = questions.get(section, [])
     correct = 0
     for i, q in enumerate(section_q):
         user_ans = answers.get(f'q{i}')
-        if user_ans is not None and int(user_ans) == q['ans']:
-            correct += 1
+        if user_ans is None:
+            continue
+        try:
+            user_int = int(user_ans)
+        except (ValueError, TypeError):
+            continue
+        # ketelitian: stored as list [code_a, code_b, is_same] after JSON round-trip
+        if isinstance(q, (list, tuple)):
+            if len(q) >= 3:
+                is_same = q[2]
+                if (user_int == 0 and is_same) or (user_int == 1 and not is_same):
+                    correct += 1
+        # matematika/logika: dicts with 'ans' key
+        elif isinstance(q, dict) and 'ans' in q:
+            if user_int == int(q['ans']):
+                correct += 1
 
     stored = session.get('tes_answers', {})
     stored[section] = correct
@@ -1550,9 +1575,13 @@ def hr_hasil_tes():
 
     with get_db() as db:
         # Auto-expire unused codes whose 1-hour window has passed
-        db.execute("""UPDATE test_codes SET status='expired'
-                     WHERE status='unused' AND expires_at < ?""",
-                  (datetime.now().strftime('%Y-%m-%d %H:%M:%S'),))
+        if PG:
+            db.execute("""UPDATE test_codes SET status='expired'
+                         WHERE status='unused' AND expires_at < NOW()""")
+        else:
+            db.execute("""UPDATE test_codes SET status='expired'
+                         WHERE status='unused' AND expires_at < ?""",
+                      (datetime.now().strftime('%Y-%m-%d %H:%M:%S'),))
 
         # Build filtered query
         where = "WHERE 1=1"
@@ -1600,10 +1629,15 @@ def hr_buat_kode():
     code   = gen_test_code()
     expires = datetime.now() + timedelta(hours=1)
     with get_db() as db:
-        db.execute("""INSERT INTO test_codes (code, posisi, tier, status, created_by, expires_at)
-                     VALUES (?,?,?,?,?,?)""",
-                  (code, posisi, tier, 'unused', session['user'],
-                   expires.strftime('%Y-%m-%d %H:%M:%S')))
+        if PG:
+            db.execute("""INSERT INTO test_codes (code, posisi, tier, status, created_by, expires_at)
+                         VALUES (?,?,?,?,?,?)""",
+                      (code, posisi, tier, 'unused', session['user'], expires))
+        else:
+            db.execute("""INSERT INTO test_codes (code, posisi, tier, status, created_by, expires_at)
+                         VALUES (?,?,?,?,?,?)""",
+                      (code, posisi, tier, 'unused', session['user'],
+                       expires.strftime('%Y-%m-%d %H:%M:%S')))
     flash(f'Kode berhasil dibuat: {code} — berlaku 1 jam untuk posisi {posisi}.', 'success')
     return redirect(url_for('hr_hasil_tes'))
 
