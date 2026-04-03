@@ -2112,6 +2112,34 @@ def print_hasil_tes(result_id):
                     headers={'Content-Disposition': f'attachment; filename="{filename}"'})
 
 
+# ── Answer Key (HR Reference) ─────────────────────────────────────────────────
+@app.route('/hr/answer-key')
+@login_required
+@role_required('hr_head','owner')
+def hr_answer_key():
+    """Printable answer key for all test sections and tiers."""
+    sections = []
+    for tier in ['operator','staff','admin']:
+        pairs = ACCURACY_PAIRS.get(tier, [])
+        qs = [{'no':i,'a':a,'b':b,'ans':'SAMA' if same else 'BERBEDA'} for i,(a,b,same) in enumerate(pairs,1)]
+        sections.append({'section':'Ketelitian (Sama/Berbeda)','tier':tier.capitalize(),'type':'ketelitian','questions':qs})
+    for tier in ['operator','staff','admin']:
+        pool = MATH_QUESTIONS.get(tier, [])
+        qs = []
+        for i,q in enumerate(pool,1):
+            opts = q.get('opts',[]); ai = q.get('ans',0)
+            qs.append({'no':i,'q':q['q'],'opts':opts,'ans_idx':ai,'ans':opts[ai] if ai<len(opts) else ''})
+        sections.append({'section':'Matematika','tier':tier.capitalize(),'type':'multiple','questions':qs})
+    for tier in ['operator','staff','admin']:
+        pool = LOGIC_QUESTIONS.get(tier, [])
+        qs = []
+        for i,q in enumerate(pool,1):
+            opts = q.get('opts',[]); ai = q.get('ans',0)
+            qs.append({'no':i,'q':q['q'],'opts':opts,'ans_idx':ai,'ans':opts[ai] if ai<len(opts) else ''})
+        sections.append({'section':'Logika','tier':tier.capitalize(),'type':'multiple','questions':qs})
+    return render_template('hr_answer_key.html', sections=sections)
+
+
 @app.route('/hr/hasil-tes')
 @login_required
 def hr_hasil_tes():
