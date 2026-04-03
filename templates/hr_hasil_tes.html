@@ -52,6 +52,7 @@
           <th>Dibuat</th>
           <th>Kadaluarsa</th>
           <th>Status</th>
+          <th>QR Code</th>
         </tr>
       </thead>
       <tbody>
@@ -63,6 +64,12 @@
           <td>{{ c.created_at|datestr if c.created_at else '—' }}</td>
           <td>{{ c.expires_at|datestr if c.expires_at else '—' }}</td>
           <td><span class="status-badge status-unused">Belum digunakan</span></td>
+          <td>
+            <button type="button" onclick="showQR('{{ c.code }}','{{ c.posisi }}')" 
+                    style="padding:5px 12px;background:#1A1916;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">
+              🔲 Tampilkan QR
+            </button>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -70,6 +77,33 @@
   </div>
 </div>
 {% endif %}
+
+<!-- QR Modal -->
+<div id="qr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:2rem;width:320px;text-align:center;">
+    <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#9B9A94;margin-bottom:1rem;">PT Mitra Karya Texindo</div>
+    <div id="qr-posisi" style="font-size:13px;color:#6B6A64;margin-bottom:.5rem;"></div>
+    <div id="qr-code" style="display:flex;justify-content:center;margin:1rem 0;"></div>
+    <div id="qr-code-text" style="font-family:monospace;font-size:18px;font-weight:700;letter-spacing:.1em;color:#1A1916;margin-bottom:.25rem;"></div>
+    <div style="font-size:12px;color:#9B9A94;margin-bottom:1.5rem;">Scan QR atau buka <strong>{{ request.host_url }}tes</strong></div>
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button onclick="printQR()" style="padding:8px 18px;background:#1A1916;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;">🖨 Print</button>
+      <button onclick="closeQR()" style="padding:8px 18px;background:#F5F4F0;color:#1A1916;border:1px solid #E0DED6;border-radius:8px;font-size:13px;cursor:pointer;">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- Print area (hidden) -->
+<div id="print-area" style="display:none;">
+  <div style="text-align:center;font-family:sans-serif;padding:20px;">
+    <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#666;margin-bottom:8px;">PT Mitra Karya Texindo</div>
+    <div id="print-posisi" style="font-size:14px;color:#333;margin-bottom:12px;"></div>
+    <div id="print-qr" style="display:flex;justify-content:center;margin-bottom:12px;"></div>
+    <div id="print-code" style="font-family:monospace;font-size:22px;font-weight:700;letter-spacing:.12em;margin-bottom:6px;"></div>
+    <div style="font-size:11px;color:#666;">Scan QR atau buka: <strong>{{ request.host_url }}tes</strong></div>
+    <div style="font-size:10px;color:#999;margin-top:8px;">Kode berlaku 1 jam</div>
+  </div>
+</div>
 
 <!-- Filters -->
 <div class="card mb-3">
@@ -124,7 +158,8 @@
           <th>Excel</th>
           <th>Hasil</th>
           <th>Tanggal</th>
-          <th></th>
+          <th>Print</th>
+          <th>Aksi</th>
         </tr>
       </thead>
       <tbody>
@@ -161,7 +196,37 @@
           </td>
           <td style="font-size:12px;color:#6B6A64">{{ r.tanggal_tes|datestr }}</td>
           <td>
-            <button onclick="printCard({{ r.id }})" class="btn-xs btn-ghost-xs">Print</button>
+            <button onclick="printCard({{ r.id }})" class="btn-xs btn-ghost-xs">🖨 Print</button>
+          </td>
+          <td>
+            <div style="display:flex;flex-direction:column;gap:4px;min-width:160px">
+              {% if session.role in ('hr_head','owner') %}
+              {% if r.verdict == 'LULUS' %}
+              <a href="/hr/hasil-tes/{{ r.id }}/terima" class="btn-xs btn-pass" style="text-align:center;text-decoration:none">✓ Terima sebagai Karyawan</a>
+              {% endif %}
+              <!-- Checklist -->
+              <div style="font-size:11px;color:#6B6A64;margin-top:4px">
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+                  <input type="checkbox" {{ 'checked' if r.checklist_pdf }} onchange="updateChecklist({{ r.id }},'checklist_pdf',this.checked)"> PDF didownload
+                </label>
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+                  <input type="checkbox" {{ 'checked' if r.checklist_drive }} onchange="updateChecklist({{ r.id }},'checklist_drive',this.checked)"> Upload ke Drive
+                </label>
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+                  <input type="checkbox" {{ 'checked' if r.checklist_imported }} onchange="updateChecklist({{ r.id }},'checklist_imported',this.checked)"> Input sebagai karyawan
+                </label>
+              </div>
+              <div style="display:flex;gap:4px;margin-top:4px">
+                <form method="POST" action="/hr/hasil-tes/{{ r.id }}/arsip">
+                  <button type="submit" class="btn-xs btn-ghost-xs" title="Arsipkan">📁 Arsip</button>
+                </form>
+                <form method="POST" action="/hr/hasil-tes/{{ r.id }}/delete" id="del-form-{{ r.id }}"
+                      onsubmit="return confirmDelete({{ r.id }}, {{ 'true' if (r.checklist_pdf and r.checklist_drive and r.checklist_imported) else 'false' }})">
+                  <button type="submit" class="btn-xs btn-fail" title="Hapus">🗑 Hapus</button>
+                </form>
+              </div>
+              {% endif %}
+            </div>
           </td>
         </tr>
         <!-- Print card (hidden) -->
@@ -335,6 +400,82 @@ function printCard(id) {
   printWin.document.write('</body></html>');
   printWin.document.close();
   setTimeout(function() { printWin.print(); }, 500);
+}
+
+// ── QR Code ────────────────────────────────────────────────────────────────────
+var currentCode = '';
+var currentPosisi = '';
+
+function showQR(code, posisi) {
+  currentCode = code;
+  currentPosisi = posisi;
+  var modal = document.getElementById('qr-modal');
+  document.getElementById('qr-posisi').textContent = 'Posisi: ' + posisi;
+  document.getElementById('qr-code-text').textContent = code;
+  document.getElementById('qr-code').innerHTML = '';
+  var url = window.location.origin + '/tes';
+  generateQR('qr-code', url, 180);
+  modal.style.display = 'flex';
+}
+
+function closeQR() {
+  document.getElementById('qr-modal').style.display = 'none';
+}
+
+function printQR() {
+  document.getElementById('print-posisi').textContent = 'Posisi: ' + currentPosisi;
+  document.getElementById('print-code').textContent = currentCode;
+  document.getElementById('print-qr').innerHTML = '';
+  var url = window.location.origin + '/tes';
+  generateQR('print-qr', url, 160);
+  setTimeout(function() {
+    var printArea = document.getElementById('print-area');
+    var win = window.open('','_blank','width=400,height=500');
+    win.document.write('<html><head><title>Kode Tes</title></head><body style="margin:0;padding:20px;font-family:sans-serif;">');
+    win.document.write(printArea.innerHTML);
+    win.document.write('</body></html>');
+    win.document.close();
+    setTimeout(function() { win.print(); }, 600);
+  }, 300);
+}
+
+function generateQR(targetId, url, size) {
+  // Use Google Charts QR API — no library needed
+  var img = document.createElement('img');
+  img.src = 'https://chart.googleapis.com/chart?chs=' + size + 'x' + size + '&cht=qr&chl=' + encodeURIComponent(url) + '&choe=UTF-8';
+  img.width = size;
+  img.height = size;
+  img.style.borderRadius = '8px';
+  document.getElementById(targetId).appendChild(img);
+}
+
+// Close modal on backdrop click
+document.getElementById('qr-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeQR();
+});
+
+// Checklist update
+function updateChecklist(resultId, field, checked) {
+  fetch('/hr/hasil-tes/' + resultId + '/checklist', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'field=' + field + '&value=' + (checked ? 1 : 0)
+  }).then(r => r.json()).then(data => {
+    if (data.all_done) {
+      // Enable delete button visually
+      var delForm = document.getElementById('del-form-' + resultId);
+      if (delForm) delForm.dataset.allDone = 'true';
+    }
+  });
+}
+
+// Confirm delete with checklist validation
+function confirmDelete(resultId, allDone) {
+  if (!allDone) {
+    alert('Harap centang semua checklist terlebih dahulu sebelum menghapus:\n✓ PDF sudah didownload\n✓ Sudah diupload ke Drive\n✓ Sudah diinput sebagai karyawan');
+    return false;
+  }
+  return confirm('Yakin ingin menghapus hasil tes ini? Tindakan ini tidak bisa dibatalkan.');
 }
 </script>
 {% endblock %}

@@ -38,6 +38,15 @@ input[name=nik]{font-family:'DM Mono',monospace;letter-spacing:.05em}
   {% if error %}
   <div class="error">{{ error }}</div>
   {% endif %}
+  {% if confirm_mode %}
+  <div class="info">
+    <strong>Data berhasil disimpan. Siap memulai tes?</strong>
+    Peserta: {{ nama }}
+  </div>
+  <form method="POST" action="/tes/confirm">
+    <button type="submit" class="btn">Mulai Tes Sekarang →</button>
+  </form>
+  {% else %}
   <form method="POST" action="/tes/identitas">
     <div class="field">
       <label>Nama Lengkap (sesuai KTP)</label>
@@ -48,8 +57,9 @@ input[name=nik]{font-family:'DM Mono',monospace;letter-spacing:.05em}
       <input type="text" name="nik" placeholder="3201XXXXXXXXXXXX" required maxlength="16" minlength="16" pattern="\d{16}" id="nikInput" autocomplete="off">
       <p class="counter"><span id="nikCount">0</span>/16</p>
     </div>
-    <button type="submit" class="btn">Mulai Tes →</button>
+    <button type="submit" class="btn">Lanjutkan →</button>
   </form>
+  {% endif %}
 </div>
 <script>
 var nikInput = document.getElementById('nikInput');

@@ -42,7 +42,6 @@ DEPARTMENTS_POSITIONS = {
     "Gudang Obat": ["Gudang Obat"],
     "Personalia": ["Staff Personalia"],
     "Resepsionis": ["Resepsionis"],
-    "Pengawas": ["Pengawas Lapangan", "Kabag Dyeing", "Kabag Finishing"],
 }
 
 PROVINCES = [
@@ -1256,8 +1255,7 @@ LOGIC_QUESTIONS = {
 POSITION_TIER = {
     'Operator Mesin':  'operator',
     'Tukang Panggul':  'operator',
-    'Staff':           'staff',
-    'Pengawas':        'staff',
+    'Kepala Shift':    'staff',
     'Kepala Bagian':   'staff',
     'Admin':           'admin',
 }
@@ -1303,16 +1301,75 @@ def init_test_tables():
             verdict VARCHAR(20) DEFAULT 'PENDING',
             tanggal_tes DATE DEFAULT CURRENT_DATE,
             selesai_at TIMESTAMP DEFAULT NOW(),
-            created_by VARCHAR(100)
+            created_by VARCHAR(100),
+            status VARCHAR(20) DEFAULT 'active',
+            form_data TEXT,
+            checklist_pdf INTEGER DEFAULT 0,
+            checklist_drive INTEGER DEFAULT 0,
+            checklist_imported INTEGER DEFAULT 0,
+            staff_id INTEGER DEFAULT NULL
         )""")
-        # Add new columns if upgrading existing DB
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS data_pelamar (
+            id SERIAL PRIMARY KEY,
+            result_id INTEGER NOT NULL,
+            code VARCHAR(10),
+            nama_lengkap VARCHAR(200),
+            nik VARCHAR(20),
+            tempat_lahir VARCHAR(100),
+            tanggal_lahir VARCHAR(20),
+            jenis_kelamin VARCHAR(20),
+            agama VARCHAR(50),
+            tinggi INTEGER,
+            berat INTEGER,
+            no_ktp VARCHAR(20),
+            no_sim VARCHAR(50),
+            status_perkawinan VARCHAR(30),
+            alamat_ktp TEXT,
+            alamat_tinggal TEXT,
+            no_hp VARCHAR(30),
+            email VARCHAR(100),
+            rumah_status VARCHAR(50),
+            kendaraan VARCHAR(100),
+            kendaraan_merk VARCHAR(100),
+            kendaraan_milik VARCHAR(50),
+            sosmed_fb VARCHAR(100),
+            sosmed_ig VARCHAR(100),
+            sosmed_twitter VARCHAR(100),
+            keluarga_json TEXT,
+            pendidikan_json TEXT,
+            pekerjaan_json TEXT,
+            organisasi_json TEXT,
+            referensi_json TEXT,
+            darurat_json TEXT,
+            pertanyaan_json TEXT,
+            deklarasi_nama VARCHAR(200),
+            created_at TIMESTAMP DEFAULT NOW()
+        )""")
+        # Migrations for existing DBs
         for col, defn in [
             ("questions_json", "TEXT"),
             ("used_by_nama", "VARCHAR(200)"),
             ("used_by_nik", "VARCHAR(20)"),
             ("result_id", "INTEGER"),
+            ("status", "VARCHAR(20) DEFAULT 'active'"),
+            ("form_data", "TEXT"),
+            ("checklist_pdf", "INTEGER DEFAULT 0"),
+            ("checklist_drive", "INTEGER DEFAULT 0"),
+            ("checklist_imported", "INTEGER DEFAULT 0"),
+            ("staff_id", "INTEGER DEFAULT NULL"),
         ]:
             try: cur.execute(f"ALTER TABLE test_codes ADD COLUMN {col} {defn}")
+            except: pass
+        for col, defn in [
+            ("status", "VARCHAR(20) DEFAULT 'active'"),
+            ("form_data", "TEXT"),
+            ("checklist_pdf", "INTEGER DEFAULT 0"),
+            ("checklist_drive", "INTEGER DEFAULT 0"),
+            ("checklist_imported", "INTEGER DEFAULT 0"),
+            ("staff_id", "INTEGER DEFAULT NULL"),
+        ]:
+            try: cur.execute(f"ALTER TABLE test_results ADD COLUMN {col} {defn}")
             except: pass
         conn.close()
     else:
@@ -1336,7 +1393,27 @@ def init_test_tables():
                     verdict TEXT DEFAULT 'PENDING',
                     tanggal_tes TEXT DEFAULT (date('now','localtime')),
                     selesai_at TEXT DEFAULT (datetime('now','localtime')),
-                    created_by TEXT)""")
+                    created_by TEXT,
+                    status TEXT DEFAULT 'active',
+                    form_data TEXT,
+                    checklist_pdf INTEGER DEFAULT 0,
+                    checklist_drive INTEGER DEFAULT 0,
+                    checklist_imported INTEGER DEFAULT 0,
+                    staff_id INTEGER DEFAULT NULL)""")
+                db.execute("""CREATE TABLE IF NOT EXISTS data_pelamar (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    result_id INTEGER NOT NULL,
+                    code TEXT, nama_lengkap TEXT, nik TEXT,
+                    tempat_lahir TEXT, tanggal_lahir TEXT,
+                    jenis_kelamin TEXT, agama TEXT, tinggi INTEGER, berat INTEGER,
+                    no_ktp TEXT, no_sim TEXT, status_perkawinan TEXT,
+                    alamat_ktp TEXT, alamat_tinggal TEXT, no_hp TEXT, email TEXT,
+                    rumah_status TEXT, kendaraan TEXT, kendaraan_merk TEXT,
+                    kendaraan_milik TEXT, sosmed_fb TEXT, sosmed_ig TEXT, sosmed_twitter TEXT,
+                    keluarga_json TEXT, pendidikan_json TEXT, pekerjaan_json TEXT,
+                    organisasi_json TEXT, referensi_json TEXT, darurat_json TEXT,
+                    pertanyaan_json TEXT, deklarasi_nama TEXT,
+                    created_at TEXT DEFAULT (datetime('now','localtime')))""")
             except: pass
             try: db.execute("ALTER TABLE test_codes ADD COLUMN questions_json TEXT")
             except: pass
@@ -1398,7 +1475,7 @@ def tes_masuk():
     session['tes_code'] = code
     session['tes_posisi'] = row['posisi']
     session['tes_tier'] = row['tier']
-    return render_template('tes_identitas.html', posisi=row['posisi'])
+    return redirect(url_for('tes_form_pelamar'))
 
 @app.route('/tes/identitas', methods=['POST'])
 def tes_identitas():
@@ -1464,7 +1541,7 @@ def tes_soal():
                                posisi=session.get('tes_posisi',''))
 
     section_questions = questions.get(section, [])
-    timers = {'ketelitian': 300, 'matematika': 300, 'logika': 600}
+    timers = {'ketelitian': 180, 'matematika': 300, 'logika': 600}
     timer  = timers.get(section, 300)
 
     section_labels = {
@@ -1558,14 +1635,51 @@ def tes_selesai():
             (code, nama_lengkap, nik, posisi, tier,
              skor_ketelitian, skor_matematika, skor_logika, verdict)
             VALUES (?,?,?,?,?,?,?,?,?)""",
-            (session['tes_code'], session['tes_nama'], session['tes_nik'],
+            (session['tes_code'], session.get('tes_nama',''), session.get('tes_nik',''),
              session['tes_posisi'], tier, skor_k, skor_m, skor_l, verdict))
         db.execute("""UPDATE test_codes SET status='completed', result_id=?
                      WHERE code=?""", (result_id, session['tes_code']))
 
+        # Save data pelamar if form was filled
+        form_data_str = session.get('tes_form_data')
+        if form_data_str and result_id:
+            try:
+                fd = json.loads(form_data_str)
+                db.execute("""INSERT INTO data_pelamar
+                    (result_id, code, nama_lengkap, nik, tempat_lahir, tanggal_lahir,
+                     jenis_kelamin, agama, tinggi, berat, no_ktp, no_sim,
+                     status_perkawinan, alamat_ktp, alamat_tinggal, no_hp, email,
+                     rumah_status, kendaraan, kendaraan_merk, kendaraan_milik,
+                     sosmed_fb, sosmed_ig, sosmed_twitter,
+                     keluarga_json, pendidikan_json, pekerjaan_json,
+                     organisasi_json, referensi_json, darurat_json,
+                     pertanyaan_json, deklarasi_nama)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (result_id, session.get('tes_code'),
+                     fd.get('nama_lengkap'), fd.get('nik'),
+                     fd.get('tempat_lahir'), fd.get('tanggal_lahir'),
+                     fd.get('jenis_kelamin'), fd.get('agama'),
+                     fd.get('tinggi') or None, fd.get('berat') or None,
+                     fd.get('no_ktp'), fd.get('no_sim'),
+                     fd.get('status_perkawinan'), fd.get('alamat_ktp'),
+                     fd.get('alamat_tinggal'), fd.get('no_hp'), fd.get('email'),
+                     fd.get('rumah_status'), fd.get('kendaraan'),
+                     fd.get('kendaraan_merk'), fd.get('kendaraan_milik'),
+                     fd.get('sosmed_fb'), fd.get('sosmed_ig'), fd.get('sosmed_twitter'),
+                     json.dumps(fd.get('keluarga',[])),
+                     json.dumps(fd.get('pendidikan',[])),
+                     json.dumps(fd.get('pekerjaan',[])),
+                     json.dumps(fd.get('organisasi',[])),
+                     json.dumps(fd.get('referensi',[])),
+                     json.dumps(fd.get('darurat',[])),
+                     json.dumps(fd.get('pertanyaan',{})),
+                     fd.get('deklarasi_nama')))
+            except Exception as e:
+                print(f"Warning: could not save data_pelamar: {e}")
+
     # Clear test session
     for k in ['tes_code','tes_posisi','tes_tier','tes_nama','tes_nik',
-              'tes_questions','tes_section','tes_answers']:
+              'tes_questions','tes_section','tes_answers','tes_form_data']:
         session.pop(k, None)
 
     return render_template('tes_selesai.html')
@@ -1576,6 +1690,7 @@ def tes_selesai():
 @login_required
 def hr_hasil_tes():
     """HR results panel — paginated, with auto-expire of stale codes."""
+    auto_cleanup_results()  # auto-delete rejected results older than 30 days
     PER_PAGE = 50
     page = max(1, int(request.args.get('page', 1)))
     filter_verdict = request.args.get('verdict', '')
@@ -1663,7 +1778,6 @@ def hr_excel_verdict(result_id):
         if not row:
             flash('Data tidak ditemukan.', 'error')
             return redirect(url_for('hr_hasil_tes'))
-        # Recompute final verdict
         final = compute_verdict(
             row['tier'], row['skor_ketelitian'],
             row['skor_matematika'], row['skor_logika'], verdict_excel)
@@ -1672,6 +1786,221 @@ def hr_excel_verdict(result_id):
     flash('Hasil tes Excel berhasil disimpan.', 'success')
     return redirect(url_for('hr_hasil_tes'))
 
+# ── Form Pelamar ───────────────────────────────────────────────────────────────
+@app.route('/tes/form-pelamar', methods=['GET','POST'])
+def tes_form_pelamar():
+    """Candidate fills data pelamar form before test starts."""
+    if 'tes_code' not in session:
+        return redirect(url_for('tes_landing'))
+    if request.method == 'POST':
+        # Collect all form data
+        def get_rows(prefix, fields, max_rows=5):
+            rows = []
+            for i in range(max_rows):
+                row = {f: request.form.get(f'{prefix}_{f}_{i}','').strip() for f in fields}
+                if any(row.values()):
+                    rows.append(row)
+            return rows
+
+        keluarga = get_rows('kel', ['nama','hubungan','lp','usia','pendidikan','pekerjaan'], 10)
+        keluarga_menikah = get_rows('kelm', ['nama','hubungan','lp','usia','pendidikan','pekerjaan'], 7)
+        pendidikan = get_rows('pend', ['tingkat','nama_sekolah','kota','jurusan','tahun','lulus'], 5)
+        pekerjaan = get_rows('kerja', ['perusahaan','jabatan','lama','gaji','alasan'], 5)
+        organisasi = get_rows('org', ['nama','jabatan','periode','kota'], 5)
+        referensi = get_rows('ref', ['nama','telepon','pekerjaan','hubungan'], 2)
+        darurat = get_rows('dar', ['nama','telepon','pekerjaan','hubungan'], 3)
+
+        pertanyaan = {}
+        for i in range(1, 15):
+            pertanyaan[str(i)] = request.form.get(f'p{i}','').strip()
+
+        form_data = {
+            'nama_lengkap': request.form.get('nama_lengkap','').strip(),
+            'nik': request.form.get('nik','').strip(),
+            'tempat_lahir': request.form.get('tempat_lahir','').strip(),
+            'tanggal_lahir': request.form.get('tanggal_lahir','').strip(),
+            'jenis_kelamin': request.form.get('jenis_kelamin','').strip(),
+            'agama': request.form.get('agama','').strip(),
+            'tinggi': request.form.get('tinggi','').strip(),
+            'berat': request.form.get('berat','').strip(),
+            'no_ktp': request.form.get('no_ktp','').strip(),
+            'no_sim': request.form.get('no_sim','').strip(),
+            'status_perkawinan': request.form.get('status_perkawinan','').strip(),
+            'alamat_ktp': request.form.get('alamat_ktp','').strip(),
+            'alamat_tinggal': request.form.get('alamat_tinggal','').strip(),
+            'no_hp': request.form.get('no_hp','').strip(),
+            'email': request.form.get('email','').strip(),
+            'rumah_status': request.form.get('rumah_status','').strip(),
+            'kendaraan': request.form.get('kendaraan','').strip(),
+            'kendaraan_merk': request.form.get('kendaraan_merk','').strip(),
+            'kendaraan_milik': request.form.get('kendaraan_milik','').strip(),
+            'sosmed_fb': request.form.get('sosmed_fb','').strip(),
+            'sosmed_ig': request.form.get('sosmed_ig','').strip(),
+            'sosmed_twitter': request.form.get('sosmed_twitter','').strip(),
+            'keluarga': keluarga,
+            'keluarga_menikah': keluarga_menikah,
+            'pendidikan': pendidikan,
+            'pekerjaan': pekerjaan,
+            'organisasi': organisasi,
+            'referensi': referensi,
+            'darurat': darurat,
+            'pertanyaan': pertanyaan,
+            'deklarasi_nama': request.form.get('deklarasi_nama','').strip(),
+        }
+
+        # Validate deklarasi
+        if not form_data['deklarasi_nama']:
+            return render_template('tes_form_pelamar.html',
+                                 posisi=session.get('tes_posisi',''),
+                                 religions=RELIGIONS,
+                                 error='Harap isi nama lengkap pada bagian deklarasi.',
+                                 form_data=form_data)
+
+        # Save to session for use after test
+        session['tes_form_data'] = json.dumps(form_data)
+        session['tes_nama'] = form_data['nama_lengkap']
+        session['tes_nik'] = form_data['nik']
+        return redirect(url_for('tes_identitas_confirm'))
+
+    return render_template('tes_form_pelamar.html',
+                          posisi=session.get('tes_posisi',''),
+                          religions=RELIGIONS,
+                          error=None, form_data={})
+
+@app.route('/tes/confirm', methods=['GET','POST'])
+def tes_identitas_confirm():
+    """Confirm identity and start test."""
+    if 'tes_code' not in session or 'tes_form_data' not in session:
+        return redirect(url_for('tes_landing'))
+    if request.method == 'POST':
+        form_data = json.loads(session.get('tes_form_data','{}'))
+        nama = form_data.get('nama_lengkap','')
+        nik  = form_data.get('nik','')
+        tier = session['tes_tier']
+        accuracy_pool = list(ACCURACY_PAIRS.get(tier, ACCURACY_PAIRS['operator']))
+        random.shuffle(accuracy_pool)
+        selected_acc = accuracy_pool[:10]
+        math_pool = MATH_QUESTIONS.get(tier, MATH_QUESTIONS['operator'])[:]
+        random.shuffle(math_pool)
+        selected_math = math_pool[:5]
+        logic_pool = LOGIC_QUESTIONS.get(tier, LOGIC_QUESTIONS['operator'])[:]
+        random.shuffle(logic_pool)
+        selected_logic = logic_pool[:10]
+        questions_data = {
+            'ketelitian': selected_acc,
+            'matematika': selected_math,
+            'logika': selected_logic,
+        }
+        session['tes_section'] = 'ketelitian'
+        session['tes_answers'] = {}
+        with get_db() as db:
+            db.execute("""UPDATE test_codes SET status='active',
+                         used_by_nama=?, used_by_nik=?, questions_json=? WHERE code=?""",
+                      (nama, nik, json.dumps(questions_data, default=list), session['tes_code']))
+        return redirect(url_for('tes_soal'))
+    return render_template('tes_identitas.html',
+                          posisi=session.get('tes_posisi',''),
+                          confirm_mode=True,
+                          nama=json.loads(session.get('tes_form_data','{}')).get('nama_lengkap',''))
+
+# ── Auto-delete rejected results after 30 days ─────────────────────────────────
+def auto_cleanup_results():
+    """Delete rejected test results older than 30 days."""
+    try:
+        if PG:
+            with get_db() as db:
+                db.execute("""DELETE FROM test_results
+                             WHERE status='active' AND verdict NOT IN ('LULUS','arsip')
+                             AND selesai_at < NOW() - INTERVAL '30 days'""")
+                db.execute("""DELETE FROM data_pelamar WHERE result_id NOT IN
+                             (SELECT id FROM test_results)""")
+        else:
+            with get_db() as db:
+                db.execute("""DELETE FROM test_results
+                             WHERE status='active' AND verdict NOT IN ('LULUS','arsip')
+                             AND selesai_at < datetime('now','-30 days')""")
+                db.execute("""DELETE FROM data_pelamar WHERE result_id NOT IN
+                             (SELECT id FROM test_results)""")
+    except: pass
+
+# ── Delete test result ─────────────────────────────────────────────────────────
+@app.route('/hr/hasil-tes/<int:result_id>/delete', methods=['POST'])
+@login_required
+@role_required('hr_head','owner')
+def delete_hasil_tes(result_id):
+    with get_db() as db:
+        db.execute("DELETE FROM data_pelamar WHERE result_id=?", (result_id,))
+        db.execute("DELETE FROM test_results WHERE id=?", (result_id,))
+        log_audit('DELETE_HASIL_TES','test_results',result_id,'Hapus hasil tes')
+    flash('Hasil tes berhasil dihapus.', 'success')
+    return redirect(url_for('hr_hasil_tes'))
+
+# ── Arsip test result ──────────────────────────────────────────────────────────
+@app.route('/hr/hasil-tes/<int:result_id>/arsip', methods=['POST'])
+@login_required
+@role_required('hr_head','owner')
+def arsip_hasil_tes(result_id):
+    with get_db() as db:
+        db.execute("UPDATE test_results SET status='arsip' WHERE id=?", (result_id,))
+        log_audit('ARSIP_HASIL_TES','test_results',result_id,'Arsip hasil tes')
+    flash('Hasil tes diarsipkan.', 'success')
+    return redirect(url_for('hr_hasil_tes'))
+
+# ── Update checklist ───────────────────────────────────────────────────────────
+@app.route('/hr/hasil-tes/<int:result_id>/checklist', methods=['POST'])
+@login_required
+def update_checklist(result_id):
+    field = request.form.get('field')
+    value = int(request.form.get('value', 0))
+    allowed = ['checklist_pdf','checklist_drive','checklist_imported']
+    if field not in allowed:
+        return jsonify({'ok': False})
+    with get_db() as db:
+        db.execute(f"UPDATE test_results SET {field}=? WHERE id=?", (value, result_id))
+        row = db.fetchone("SELECT checklist_pdf,checklist_drive,checklist_imported FROM test_results WHERE id=?", (result_id,))
+    all_done = row and all([row['checklist_pdf'], row['checklist_drive'], row['checklist_imported']])
+    return jsonify({'ok': True, 'all_done': all_done})
+
+# ── Terima sebagai Karyawan ────────────────────────────────────────────────────
+@app.route('/hr/hasil-tes/<int:result_id>/terima')
+@login_required
+@role_required('hr_head','owner')
+def terima_karyawan(result_id):
+    """Pre-fill add staff form with candidate data."""
+    with get_db() as db:
+        result = db.fetchone("SELECT * FROM test_results WHERE id=?", (result_id,))
+        pelamar = db.fetchone("SELECT * FROM data_pelamar WHERE result_id=?", (result_id,))
+    if not result:
+        flash('Data tidak ditemukan.', 'error')
+        return redirect(url_for('hr_hasil_tes'))
+    # Store in session for add_staff to pick up
+    session['import_from_tes'] = result_id
+    flash(f'Data {result["nama_lengkap"]} siap diimport. Harap review semua data sebelum menyimpan.', 'warning')
+    return redirect(url_for('add_staff'))
+
+# ── Get pelamar data for import ────────────────────────────────────────────────
+@app.route('/api/pelamar-data/<int:result_id>')
+@login_required
+def get_pelamar_data(result_id):
+    with get_db() as db:
+        pelamar = db.fetchone("SELECT * FROM data_pelamar WHERE result_id=?", (result_id,))
+        result  = db.fetchone("SELECT * FROM test_results WHERE id=?", (result_id,))
+    if not pelamar:
+        return jsonify({'found': False})
+    return jsonify({
+        'found': True,
+        'nama_lengkap': pelamar.get('nama_lengkap') or result.get('nama_lengkap',''),
+        'ktp_number': pelamar.get('nik',''),
+        'birth_date': pelamar.get('tanggal_lahir',''),
+        'birth_place': pelamar.get('tempat_lahir',''),
+        'gender': pelamar.get('jenis_kelamin',''),
+        'religion': pelamar.get('agama',''),
+        'address': pelamar.get('alamat_tinggal',''),
+        'phone': pelamar.get('no_hp',''),
+        'education': '',
+        'emergency_contact': '',
+        'emergency_phone': '',
+    })
 
 # Initialize DB at startup — called here so all functions are defined first
 with app.app_context():
@@ -1693,10 +2022,43 @@ with app.app_context():
                 ("used_by_nama", "VARCHAR(200)"),
                 ("used_by_nik", "VARCHAR(20)"),
                 ("result_id", "INTEGER"),
+                ("status", "VARCHAR(20) DEFAULT 'active'"),
+                ("form_data", "TEXT"),
+                ("checklist_pdf", "INTEGER DEFAULT 0"),
+                ("checklist_drive", "INTEGER DEFAULT 0"),
+                ("checklist_imported", "INTEGER DEFAULT 0"),
+                ("staff_id", "INTEGER DEFAULT NULL"),
                 ("birth_place", "VARCHAR(100) NOT NULL DEFAULT ''"),
             ]:
                 try: _cur.execute(f"ALTER TABLE test_codes ADD COLUMN {_col} {_defn}")
                 except: pass
+            for _col, _defn in [
+                ("status", "VARCHAR(20) DEFAULT 'active'"),
+                ("form_data", "TEXT"),
+                ("checklist_pdf", "INTEGER DEFAULT 0"),
+                ("checklist_drive", "INTEGER DEFAULT 0"),
+                ("checklist_imported", "INTEGER DEFAULT 0"),
+                ("staff_id", "INTEGER DEFAULT NULL"),
+            ]:
+                try: _cur.execute(f"ALTER TABLE test_results ADD COLUMN {_col} {_defn}")
+                except: pass
+            # Create data_pelamar if not exists
+            try:
+                _cur.execute("""CREATE TABLE IF NOT EXISTS data_pelamar (
+                    id SERIAL PRIMARY KEY, result_id INTEGER NOT NULL,
+                    code VARCHAR(10), nama_lengkap VARCHAR(200), nik VARCHAR(20),
+                    tempat_lahir VARCHAR(100), tanggal_lahir VARCHAR(20),
+                    jenis_kelamin VARCHAR(20), agama VARCHAR(50),
+                    tinggi INTEGER, berat INTEGER, no_ktp VARCHAR(20), no_sim VARCHAR(50),
+                    status_perkawinan VARCHAR(30), alamat_ktp TEXT, alamat_tinggal TEXT,
+                    no_hp VARCHAR(30), email VARCHAR(100), rumah_status VARCHAR(50),
+                    kendaraan VARCHAR(100), kendaraan_merk VARCHAR(100), kendaraan_milik VARCHAR(50),
+                    sosmed_fb VARCHAR(100), sosmed_ig VARCHAR(100), sosmed_twitter VARCHAR(100),
+                    keluarga_json TEXT, pendidikan_json TEXT, pekerjaan_json TEXT,
+                    organisasi_json TEXT, referensi_json TEXT, darurat_json TEXT,
+                    pertanyaan_json TEXT, deklarasi_nama VARCHAR(200),
+                    created_at TIMESTAMP DEFAULT NOW())""")
+            except: pass
             try: _cur.execute("ALTER TABLE staff ADD COLUMN birth_place VARCHAR(100) NOT NULL DEFAULT ''")
             except: pass
             _conn.commit()
