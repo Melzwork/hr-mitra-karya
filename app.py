@@ -1150,7 +1150,7 @@ MATH_QUESTIONS = {
         },
     
                 {'q': 'Seorang karyawan mendapat upah Rp 80.000 per hari. Berapa upahnya dalam 26 hari kerja?', 'opts': ['Rp 1.900.000', 'Rp 2.000.000', 'Rp 2.080.000', 'Rp 2.100.000'], 'ans': 2},
-        {'q': 'Sebuah mesin menghasilkan 45 meter kain per jam. Berapa meter kain yang dihasilkan dalam 7 jam?', 'opts': ['295 m', 'Rp 305 m', '315 m', '325 m'], 'ans': 2},
+        {'q': 'Sebuah mesin menghasilkan 45 meter kain per jam. Berapa meter kain yang dihasilkan dalam 7 jam?', 'opts': ['295 m', '305 m', '315 m', '325 m'], 'ans': 2},
         {'q': 'Ada 3 kotak berisi masing-masing 24 gulungan benang. Berapa total gulungan benang?', 'opts': ['60', '66', '72', '78'], 'ans': 2},
         {'q': 'Dari 120 produk yang diperiksa, 6 produk cacat. Berapa persen produk yang tidak cacat?', 'opts': ['92%', '93%', '94%', '95%'], 'ans': 3},
         {'q': 'Stok awal: 500 meter. Masuk: 300 meter. Keluar: 420 meter. Berapa stok akhir?', 'opts': ['360 m', '370 m', '380 m', '390 m'], 'ans': 2},
@@ -1175,7 +1175,7 @@ MATH_QUESTIONS = {
         },
         {
             'q': 'Order masuk: 8.000 meter kain. Stok tersedia: 3.200 meter. Bahan baku untuk 1 meter membutuhkan 1,2 kg benang. Berapa kg benang yang masih dibutuhkan?',
-            'opts': ['5.520 kg', '5.760 kg', '5.640 kg', '5.800 kg'], 'ans': 0
+            'opts': ['5.520 kg', '5.760 kg', '5.640 kg', '5.800 kg'], 'ans': 1
         },
         {
             'q': 'Kapasitas mesin: 150 unit per jam. Dalam 8 jam kerja ada 2 kali berhenti masing-masing 15 menit. Berapa total unit yang bisa diproduksi?',
@@ -1183,11 +1183,11 @@ MATH_QUESTIONS = {
         },
         {
             'q': 'Produksi bulan lalu: 12.400 unit. Bulan ini naik 15%. Berapa produksi bulan ini?',
-            'opts': ['13.860 unit', '14.260 unit', '14.060 unit', '13.660 unit'], 'ans': 0
+            'opts': ['13.660 unit', '13.860 unit', '14.060 unit', '14.260 unit'], 'ans': 3
         },
         {
             'q': 'Satu order membutuhkan 2,5 kg benang per meter kain. Order sebesar 400 meter. Stok benang tersedia 850 kg. Apakah stok cukup? Jika tidak, berapa kg kekurangannya?',
-            'opts': ['Cukup, sisa 150 kg', 'Kurang 50 kg', 'Kurang 150 kg', 'Cukup, sisa 50 kg'], 'ans': 1
+            'opts': ['Cukup, sisa 150 kg', 'Kurang 50 kg', 'Kurang 150 kg', 'Cukup, sisa 50 kg'], 'ans': 2
         },
         {
             'q': 'Mesin B mampu menghasilkan 200 meter kain per jam. Target order: 3.000 meter. Berapa hari kerja (8 jam/hari) yang dibutuhkan?',
@@ -1205,7 +1205,7 @@ MATH_QUESTIONS = {
                 {'q': 'Efisiensi mesin bulan ini 87%. Target minimal 85%. Jika kapasitas penuh 15.000 unit, berapa unit yang terproduksi?', 'opts': ['12.750 unit', '13.000 unit', '13.050 unit', '13.500 unit'], 'ans': 2},
         {'q': 'Gaji pokok Rp 4.500.000. Tunjangan transport Rp 300.000. Tunjangan makan Rp 450.000. Dipotong BPJS 1% dari gaji pokok. Berapa take-home pay?', 'opts': ['Rp 5.150.000', 'Rp 5.175.000', 'Rp 5.200.000', 'Rp 5.205.000'], 'ans': 1},
         {'q': 'Produksi 3 shift: Shift 1 = 2.400 unit, Shift 2 = 2.100 unit, Shift 3 = 1.950 unit. Berapa rata-rata produksi per shift?', 'opts': ['2.100 unit', '2.150 unit', '2.200 unit', '2.250 unit'], 'ans': 1},
-        {'q': 'Target harian 800 unit. Hari Senin: 780, Selasa: 820, Rabu: 760. Berapa rata-rata pencapaian vs target?', 'opts': ['97%', '97,5%', '98%', '98,5%'], 'ans': 0},
+        {'q': 'Target harian 800 unit. Hari Senin: 780, Selasa: 820, Rabu: 760. Berapa rata-rata pencapaian vs target?', 'opts': ['97%', '97,5%', '98%', '98,5%'], 'ans': 2},
         {'q': 'Stok benang 3 jenis: A=1.200 kg, B=850 kg, C=1.450 kg. Order membutuhkan masing-masing 400 kg. Jenis mana yang tidak cukup?', 'opts': ['Hanya B', 'Hanya A', 'B dan C', 'Semua cukup'], 'ans': 0},
         {'q': 'Mesin berjalan 22 hari dalam sebulan, 8 jam per hari. Downtime total 12 jam. Berapa persen availability mesin?', 'opts': ['91,8%', '92,5%', '93,2%', '93,8%'], 'ans': 2},
         {'q': 'Biaya produksi per unit: bahan Rp 12.000, tenaga Rp 5.000, overhead Rp 3.000. Harga jual Rp 25.000. Berapa margin per unit?', 'opts': ['Rp 4.000', 'Rp 5.000', 'Rp 6.000', 'Rp 7.000'], 'ans': 1},
@@ -1216,7 +1216,7 @@ MATH_QUESTIONS = {
     'admin': [
         {
             'q': 'Satu order membutuhkan 120 meter kain per warna. Ada 4 warna. Stok tersedia 380 meter. Berapa meter kekurangannya?',
-            'opts': ['80 meter', '100 meter', '60 meter', '40 meter'], 'ans': 0
+            'opts': ['60 meter', '80 meter', '100 meter', '120 meter'], 'ans': 2
         },
         {
             'q': 'Dari 5 hari kerja, seorang karyawan hadir 4 hari. Berapa persen tingkat kehadirannya?',
@@ -1232,7 +1232,7 @@ MATH_QUESTIONS = {
         },
         {
             'q': 'Order A: 500 meter @ 1,5 kg benang/meter. Order B: 300 meter @ 2 kg benang/meter. Berapa total benang yang dibutuhkan?',
-            'opts': ['1.300 kg', '1.350 kg', '1.400 kg', '1.450 kg'], 'ans': 0
+            'opts': ['1.250 kg', '1.300 kg', '1.350 kg', '1.400 kg'], 'ans': 2
         },
         {
             'q': 'Kapasitas gudang: 5.000 unit. Saat ini terisi 3.750 unit. Berapa persen kapasitas yang sudah terpakai?',
