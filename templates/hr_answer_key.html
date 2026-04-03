@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}Kunci Jawaban Tes{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <h1>Kunci Jawaban Tes</h1>
+  <button onclick="window.print()" style="padding:10px 20px;background:#1A1916;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;">🖨 Print</button>
+</div>
+
+<style>
+@media print {
+  nav, .topbar, button, .sidebar { display: none !important; }
+  .main-content { margin: 0 !important; padding: 0 !important; }
+  .answer-section { page-break-inside: avoid; }
+}
+.answer-section { background:#fff; border:1px solid #E0DED6; border-radius:12px; margin-bottom:20px; overflow:hidden; }
+.answer-section-header { padding:12px 20px; background:#1A1916; color:#fff; display:flex; align-items:center; gap:12px; }
+.answer-section-title { font-size:14px; font-weight:600; }
+.tier-badge { padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; text-transform:uppercase; }
+.tier-operator { background:#E8F4FD; color:#1A5276; }
+.tier-staff { background:#E8F8F5; color:#1A5E3A; }
+.tier-admin { background:#FEF9E7; color:#7D6608; }
+.answer-table { width:100%; border-collapse:collapse; font-size:13px; }
+.answer-table th { padding:8px 16px; text-align:left; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:#9B9A94; border-bottom:1px solid #E0DED6; background:#F5F4F0; }
+.answer-table td { padding:10px 16px; border-bottom:1px solid #F0EFE9; vertical-align:top; }
+.answer-table tr:last-child td { border-bottom:none; }
+.correct { color:#1D6B3E; font-weight:600; }
+.opt-correct { background:#E8F5EE; color:#1D6B3E; padding:2px 8px; border-radius:4px; font-weight:600; }
+.opt-wrong { color:#9B9A94; }
+.pair-sama { color:#1D6B3E; font-weight:600; }
+.pair-beda { color:#C0392B; font-weight:600; }
+</style>
+
+{% for sec in sections %}
+<div class="answer-section">
+  <div class="answer-section-header">
+    <div class="answer-section-title">{{ sec.section }}</div>
+    <span class="tier-badge tier-{{ sec.tier|lower }}">{{ sec.tier }}</span>
+    <span style="font-size:12px;color:#9B9A94;margin-left:auto">{{ sec.questions|length }} soal</span>
+  </div>
+
+  {% if sec.type == 'ketelitian' %}
+  <table class="answer-table">
+    <thead>
+      <tr><th>No</th><th>Kode A</th><th>Kode B</th><th>Jawaban</th></tr>
+    </thead>
+    <tbody>
+      {% for q in sec.questions %}
+      <tr>
+        <td style="width:40px;color:#9B9A94">{{ q.no }}</td>
+        <td style="font-family:monospace">{{ q.a }}</td>
+        <td style="font-family:monospace">{{ q.b }}</td>
+        <td class="{{ 'pair-sama' if q.ans == 'SAMA' else 'pair-beda' }}">{{ q.ans }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% else %}
+  <table class="answer-table">
+    <thead>
+      <tr><th style="width:40px">No</th><th>Pertanyaan</th><th>Pilihan Jawaban</th><th>Jawaban Benar</th></tr>
+    </thead>
+    <tbody>
+      {% for q in sec.questions %}
+      <tr>
+        <td style="color:#9B9A94">{{ q.no }}</td>
+        <td>{{ q.q }}</td>
+        <td>
+          {% for opt in q.opts %}
+          <div class="{{ 'opt-correct' if loop.index0 == q.ans_idx else 'opt-wrong' }}">
+            {{ loop.index0 }}) {{ opt }}
+          </div>
+          {% endfor %}
+        </td>
+        <td class="correct">{{ q.ans }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endfor %}
+
+{% endblock %}

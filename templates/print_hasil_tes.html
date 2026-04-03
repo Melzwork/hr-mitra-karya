@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Data Pelamar & Hasil Tes — {{ result.nama_lengkap }}</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; font-size: 10px; color: #000; background: #fff; }
+.no-print { }
+@media print {
+  .no-print { display: none !important; }
+  body { font-size: 9px; }
+  .section { page-break-inside: avoid; }
+}
+
+/* Print button */
+.print-btn { position: fixed; top: 16px; right: 16px; padding: 10px 20px; background: #1A1916; color: #fff; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; z-index: 999; }
+
+/* Document layout */
+.document { max-width: 210mm; margin: 0 auto; padding: 16mm 16mm; }
+.doc-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 14px; }
+.doc-header h1 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
+.doc-header h2 { font-size: 10px; font-weight: normal; color: #444; margin-top: 2px; }
+.doc-title { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: .05em; text-align: center; border: 2px solid #000; padding: 6px; margin-bottom: 12px; }
+
+/* Sections */
+.section { margin-bottom: 12px; }
+.section-title { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: .05em; background: #000; color: #fff; padding: 3px 8px; margin-bottom: 4px; }
+
+/* Data grid */
+.data-grid { width: 100%; border-collapse: collapse; }
+.data-grid td { border: 1px solid #999; padding: 3px 6px; vertical-align: top; }
+.data-grid .lbl { width: 30%; color: #444; font-size: 9px; }
+.data-grid .val { font-weight: 500; }
+
+/* Tables */
+.tbl { width: 100%; border-collapse: collapse; font-size: 9px; }
+.tbl th { border: 1px solid #999; padding: 3px 5px; background: #eee; font-weight: bold; text-align: left; font-size: 8px; text-transform: uppercase; }
+.tbl td { border: 1px solid #ccc; padding: 3px 5px; vertical-align: top; }
+.tbl tr:nth-child(even) td { background: #fafafa; }
+
+/* Scores */
+.scores-row { display: flex; gap: 8px; margin: 8px 0; }
+.score-box { flex: 1; border: 1.5px solid #999; border-radius: 4px; padding: 8px; text-align: center; }
+.score-box.pass { border-color: #1D6B3E; background: #E8F5EE; }
+.score-box.fail { border-color: #C0392B; background: #FAEAEA; }
+.score-val { font-size: 18px; font-weight: bold; }
+.score-lbl { font-size: 8px; color: #555; margin: 2px 0; }
+.score-status { font-size: 9px; font-weight: bold; }
+.score-box.pass .score-val, .score-box.pass .score-status { color: #1D6B3E; }
+.score-box.fail .score-val, .score-box.fail .score-status { color: #C0392B; }
+
+/* Verdict */
+.verdict { text-align: center; border: 2px solid #000; padding: 8px; margin: 10px 0; font-size: 16px; font-weight: bold; letter-spacing: .1em; }
+.verdict.lulus { border-color: #1D6B3E; color: #1D6B3E; background: #E8F5EE; }
+.verdict.tidak { border-color: #C0392B; color: #C0392B; background: #FAEAEA; }
+
+/* Pertanyaan */
+.p-item { margin-bottom: 6px; }
+.p-q { font-size: 9px; color: #444; }
+.p-a { font-weight: 500; margin-left: 10px; }
+
+/* Declaration */
+.declaration { border: 1.5px solid #999; padding: 8px; margin-top: 8px; font-size: 9px; line-height: 1.6; }
+.sign-area { display: flex; gap: 16px; margin-top: 12px; }
+.sign-box { flex: 1; border-top: 1px solid #000; padding-top: 4px; text-align: center; font-size: 9px; color: #444; }
+
+/* Footer */
+.doc-footer { margin-top: 16px; border-top: 1px solid #ccc; padding-top: 6px; font-size: 8px; color: #666; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">🖨 Print / Save PDF</button>
+
+<div class="document">
+
+  <!-- Header -->
+  <div class="doc-header">
+    <h1>PT Mitra Karya Texindo</h1>
+    <h2>Jl. Raya Serang — Banten, Indonesia</h2>
+  </div>
+  <div class="doc-title">Data Pribadi Pelamar & Hasil Tes Kandidat</div>
+
+  <!-- DATA PRIBADI -->
+  {% if pelamar %}
+  <div class="section">
+    <div class="section-title">1. Data Pribadi</div>
+    <table class="data-grid">
+      <tr>
+        <td class="lbl">Nama Lengkap</td>
+        <td class="val" colspan="3">{{ pelamar.get('nama_lengkap') or result.nama_lengkap }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">NIK KTP</td>
+        <td class="val">{{ pelamar.get('nik') or result.nik }}</td>
+        <td class="lbl">No. SIM</td>
+        <td class="val">{{ pelamar.get('no_sim') or '—' }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Tempat / Tgl Lahir</td>
+        <td class="val">{{ pelamar.get('tempat_lahir','—') }} / {{ pelamar.get('tanggal_lahir','—') }}</td>
+        <td class="lbl">Jenis Kelamin</td>
+        <td class="val">{{ pelamar.get('jenis_kelamin','—') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Agama</td>
+        <td class="val">{{ pelamar.get('agama','—') }}</td>
+        <td class="lbl">Status Perkawinan</td>
+        <td class="val">{{ pelamar.get('status_perkawinan','—') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Tinggi / Berat</td>
+        <td class="val">{{ pelamar.get('tinggi','—') }} cm / {{ pelamar.get('berat','—') }} kg</td>
+        <td class="lbl">No. HP</td>
+        <td class="val">{{ pelamar.get('no_hp','—') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Email</td>
+        <td class="val">{{ pelamar.get('email','—') }}</td>
+        <td class="lbl">Status Rumah</td>
+        <td class="val">{{ pelamar.get('rumah_status','—') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Alamat KTP</td>
+        <td class="val" colspan="3">{{ pelamar.get('alamat_ktp','—') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Alamat Tinggal</td>
+        <td class="val" colspan="3">{{ pelamar.get('alamat_tinggal','—') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Kendaraan</td>
+        <td class="val">{{ pelamar.get('kendaraan','—') }} {{ pelamar.get('kendaraan_merk','') }}</td>
+        <td class="lbl">Milik</td>
+        <td class="val">{{ pelamar.get('kendaraan_milik','—') }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Sosial Media</td>
+        <td class="val" colspan="3">FB: {{ pelamar.get('sosmed_fb','—') }} | IG: {{ pelamar.get('sosmed_ig','—') }} | Twitter: {{ pelamar.get('sosmed_twitter','—') }}</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- SUSUNAN KELUARGA -->
+  {% if pelamar.keluarga %}
+  <div class="section">
+    <div class="section-title">2. Susunan Keluarga</div>
+    <table class="tbl">
+      <thead><tr><th>Hubungan</th><th>Nama</th><th>L/P</th><th>Usia</th><th>Pendidikan</th><th>Pekerjaan</th></tr></thead>
+      <tbody>
+        {% for k in pelamar.keluarga %}
+        <tr>
+          <td>{{ k.get('hubungan','') }}</td>
+          <td>{{ k.get('nama','') }}</td>
+          <td>{{ k.get('lp','') }}</td>
+          <td>{{ k.get('usia','') }}</td>
+          <td>{{ k.get('pendidikan','') }}</td>
+          <td>{{ k.get('pekerjaan','') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- RIWAYAT PENDIDIKAN -->
+  {% if pelamar.pendidikan %}
+  <div class="section">
+    <div class="section-title">3. Riwayat Pendidikan Formal</div>
+    <table class="tbl">
+      <thead><tr><th>Tingkat</th><th>Nama Sekolah</th><th>Kota</th><th>Jurusan</th><th>Tahun</th><th>Lulus</th></tr></thead>
+      <tbody>
+        {% for p in pelamar.pendidikan %}
+        <tr>
+          <td>{{ p.get('tingkat','') }}</td>
+          <td>{{ p.get('nama_sekolah','') }}</td>
+          <td>{{ p.get('kota','') }}</td>
+          <td>{{ p.get('jurusan','') }}</td>
+          <td>{{ p.get('tahun','') }}</td>
+          <td>{{ p.get('lulus','') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- RIWAYAT PEKERJAAN -->
+  {% if pelamar.pekerjaan %}
+  <div class="section">
+    <div class="section-title">4. Riwayat Pekerjaan (Terbaru)</div>
+    <table class="tbl">
+      <thead><tr><th>Nama Perusahaan</th><th>Jabatan</th><th>Lama Kerja</th><th>Gaji Terakhir</th><th>Alasan Berhenti</th></tr></thead>
+      <tbody>
+        {% for p in pelamar.pekerjaan %}
+        <tr>
+          <td>{{ p.get('perusahaan','') }}</td>
+          <td>{{ p.get('jabatan','') }}</td>
+          <td>{{ p.get('lama','') }}</td>
+          <td>{{ p.get('gaji','') }}</td>
+          <td>{{ p.get('alasan','') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- PENGALAMAN ORGANISASI -->
+  {% if pelamar.organisasi %}
+  <div class="section">
+    <div class="section-title">5. Pengalaman Organisasi</div>
+    <table class="tbl">
+      <thead><tr><th>Nama Organisasi</th><th>Jabatan</th><th>Periode</th><th>Kota</th></tr></thead>
+      <tbody>
+        {% for o in pelamar.organisasi %}
+        <tr>
+          <td>{{ o.get('nama','') }}</td>
+          <td>{{ o.get('jabatan','') }}</td>
+          <td>{{ o.get('periode','') }}</td>
+          <td>{{ o.get('kota','') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- REFERENSI & KONTAK DARURAT -->
+  <div class="section" style="display:flex;gap:10px">
+    {% if pelamar.referensi %}
+    <div style="flex:1">
+      <div class="section-title">6. Referensi</div>
+      <table class="tbl">
+        <thead><tr><th>Nama</th><th>Telepon</th><th>Hubungan</th></tr></thead>
+        <tbody>
+          {% for r in pelamar.referensi %}
+          <tr><td>{{ r.get('nama','') }}</td><td>{{ r.get('telepon','') }}</td><td>{{ r.get('hubungan','') }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% if pelamar.darurat %}
+    <div style="flex:1">
+      <div class="section-title">7. Kontak Darurat</div>
+      <table class="tbl">
+        <thead><tr><th>Nama</th><th>Telepon</th><th>Hubungan</th></tr></thead>
+        <tbody>
+          {% for d in pelamar.darurat %}
+          <tr><td>{{ d.get('nama','') }}</td><td>{{ d.get('telepon','') }}</td><td>{{ d.get('hubungan','') }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- PERTANYAAN -->
+  {% if pelamar.pertanyaan %}
+  <div class="section">
+    <div class="section-title">8. Pertanyaan</div>
+    {% for num, text in pertanyaan_list %}
+    <div class="p-item">
+      <div class="p-q">{{ num }}. {{ text }}</div>
+      <div class="p-a">→ {{ pelamar.pertanyaan.get(num|string, '—') }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- DEKLARASI -->
+  <div class="section">
+    <div class="section-title">9. Pernyataan / Deklarasi</div>
+    <div class="declaration">
+      Saya yang bertanda tangan di bawah ini menyatakan bahwa seluruh data dan informasi yang saya isi dalam formulir ini adalah benar, lengkap, dan dapat dipertanggungjawabkan. Apabila di kemudian hari terbukti terdapat data yang tidak benar atau menyesatkan, PT Mitra Karya Texindo berhak mengakhiri hubungan kerja tanpa kewajiban memberikan kompensasi apapun, dan saya wajib membayar ganti rugi sesuai Pasal 62 UU No. 13 Tahun 2003 tentang Ketenagakerjaan.
+      <br><br>
+      <strong>Nama:</strong> {{ pelamar.get('deklarasi_nama','—') }} &nbsp;&nbsp;&nbsp;
+      <strong>NIK:</strong> {{ pelamar.get('deklarasi_nik', pelamar.get('nik','—')) }} &nbsp;&nbsp;&nbsp;
+      <strong>Tanggal:</strong> {{ result.tanggal_tes|string }}
+    </div>
+  </div>
+
+  {% else %}
+  <!-- No form data available -->
+  <div class="section">
+    <div class="section-title">Data Pribadi</div>
+    <table class="data-grid">
+      <tr><td class="lbl">Nama Lengkap</td><td class="val">{{ result.nama_lengkap }}</td></tr>
+      <tr><td class="lbl">NIK KTP</td><td class="val">{{ result.nik }}</td></tr>
+      <tr><td class="lbl">Posisi</td><td class="val">{{ result.posisi }}</td></tr>
+    </table>
+    <p style="color:#999;font-size:9px;margin-top:6px;font-style:italic">Data pelamar lengkap tidak tersedia (tes dilakukan sebelum form pelamar online diterapkan).</p>
+  </div>
+  {% endif %}
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- HASIL TES -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div style="border-top:3px solid #000;margin:16px 0 10px;padding-top:8px">
+    <div class="doc-title" style="margin-bottom:10px">Hasil Tes</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Identitas & Posisi</div>
+    <table class="data-grid">
+      <tr>
+        <td class="lbl">Nama</td><td class="val">{{ result.nama_lengkap }}</td>
+        <td class="lbl">Tanggal Tes</td><td class="val">{{ result.tanggal_tes|string }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Posisi Dilamar</td><td class="val">{{ result.posisi }}</td>
+        <td class="lbl">Level Tes</td><td class="val">{{ result.tier|capitalize }}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Skor Per Seksi</div>
+    <div class="scores-row">
+      <div class="score-box {{ 'pass' if result.skor_ketelitian >= 7 else 'fail' }}">
+        <div class="score-val">{{ result.skor_ketelitian }}/10</div>
+        <div class="score-lbl">Ketelitian</div>
+        <div class="score-status">{{ 'LULUS' if result.skor_ketelitian >= 7 else 'TIDAK LULUS' }}</div>
+      </div>
+      <div class="score-box {{ 'pass' if result.skor_matematika >= 4 else 'fail' }}">
+        <div class="score-val">{{ result.skor_matematika }}/5</div>
+        <div class="score-lbl">Matematika</div>
+        <div class="score-status">{{ 'LULUS' if result.skor_matematika >= 4 else 'TIDAK LULUS' }}</div>
+      </div>
+      <div class="score-box {{ 'pass' if result.skor_logika >= 7 else 'fail' }}">
+        <div class="score-val">{{ result.skor_logika }}/10</div>
+        <div class="score-lbl">Logika</div>
+        <div class="score-status">{{ 'LULUS' if result.skor_logika >= 7 else 'TIDAK LULUS' }}</div>
+      </div>
+      {% if result.tier == 'admin' %}
+      <div class="score-box {{ 'pass' if result.skor_excel == 'LULUS' else 'fail' }}">
+        <div class="score-val">—</div>
+        <div class="score-lbl">Excel/Komputer</div>
+        <div class="score-status">{{ result.skor_excel or 'PENDING' }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="verdict {{ 'lulus' if result.verdict == 'LULUS' else 'tidak' }}">
+    HASIL AKHIR: {{ result.verdict }}
+  </div>
+
+  <!-- Signature area for HR -->
+  <div class="sign-area" style="margin-top:20px">
+    <div class="sign-box">
+      <br><br><br>
+      Diperiksa oleh HR
+    </div>
+    <div class="sign-box">
+      <br><br><br>
+      Disetujui oleh HR Head
+    </div>
+    <div class="sign-box">
+      <br><br><br>
+      Kandidat
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <span>PT Mitra Karya Texindo — Sistem HR Internal</span>
+    <span>Dicetak: {{ now.strftime('%d %B %Y %H:%M') }}</span>
+    <span>RAHASIA — Tidak untuk disebarluaskan</span>
+  </div>
+
+</div>
+</body>
+</html>

@@ -621,8 +621,38 @@ def add_staff():
             log_audit('ADD_STAFF','staff',staff_id,f"Tambah: {request.form['full_name']} ({emp_id})")
         flash(f'Karyawan {request.form["full_name"]} berhasil ditambahkan. ID: {emp_id}','success')
         return redirect(url_for('view_staff',staff_id=staff_id))
+    # Check if coming from hasil tes (auto-fill)
+    prefill = {}
+    import_result_id = session.pop('import_from_tes', None)
+    if import_result_id:
+        with get_db() as db:
+            pelamar = db.fetchone("SELECT * FROM data_pelamar WHERE result_id=?", (import_result_id,))
+            result  = db.fetchone("SELECT * FROM test_results WHERE id=?", (import_result_id,))
+        if pelamar:
+            # Parse darurat for emergency contact
+            import json as _json
+            darurat = []
+            try: darurat = _json.loads(pelamar.get('darurat_json') or '[]')
+            except: pass
+            first_darurat = darurat[0] if darurat else {}
+            prefill = {
+                'full_name':               pelamar.get('nama_lengkap') or (result.get('nama_lengkap') if result else ''),
+                'ktp_number':              pelamar.get('nik') or (result.get('nik') if result else ''),
+                'birth_date':              pelamar.get('tanggal_lahir',''),
+                'birth_place':             pelamar.get('tempat_lahir',''),
+                'gender':                  pelamar.get('jenis_kelamin',''),
+                'religion':                pelamar.get('agama',''),
+                'address':                 pelamar.get('alamat_tinggal',''),
+                'phone':                   pelamar.get('no_hp',''),
+                'emergency_contact':       first_darurat.get('nama',''),
+                'emergency_relationship':  first_darurat.get('hubungan',''),
+                'emergency_phone':         first_darurat.get('telepon',''),
+                'position':                result.get('posisi','') if result else '',
+                'import_result_id':        import_result_id,
+            }
+            flash(f'Data {prefill["full_name"]} berhasil diimport dari hasil tes. Harap periksa semua data sebelum menyimpan.', 'warning')
     return render_template('add_staff.html', departments=DEPARTMENTS_POSITIONS,
-                          provinces=PROVINCES, religions=RELIGIONS)
+                          provinces=PROVINCES, religions=RELIGIONS, prefill=prefill)
 
 @app.route('/staff/<int:staff_id>')
 @login_required
@@ -1118,6 +1148,17 @@ MATH_QUESTIONS = {
             'q': 'Target mingguan: 2.400 unit dalam 6 hari kerja. Berapa unit target per hari?',
             'opts': ['350', '380', '400', '420'], 'ans': 2
         },
+    
+                {'q': 'Seorang karyawan mendapat upah Rp 80.000 per hari. Berapa upahnya dalam 26 hari kerja?', 'opts': ['Rp 1.900.000', 'Rp 2.000.000', 'Rp 2.080.000', 'Rp 2.100.000'], 'ans': 2},
+        {'q': 'Sebuah mesin menghasilkan 45 meter kain per jam. Berapa meter kain yang dihasilkan dalam 7 jam?', 'opts': ['295 m', 'Rp 305 m', '315 m', '325 m'], 'ans': 2},
+        {'q': 'Ada 3 kotak berisi masing-masing 24 gulungan benang. Berapa total gulungan benang?', 'opts': ['60', '66', '72', '78'], 'ans': 2},
+        {'q': 'Dari 120 produk yang diperiksa, 6 produk cacat. Berapa persen produk yang tidak cacat?', 'opts': ['92%', '93%', '94%', '95%'], 'ans': 3},
+        {'q': 'Stok awal: 500 meter. Masuk: 300 meter. Keluar: 420 meter. Berapa stok akhir?', 'opts': ['360 m', '370 m', '380 m', '390 m'], 'ans': 2},
+        {'q': 'Mesin beroperasi 6 jam menghasilkan 540 unit. Berapa unit per jam?', 'opts': ['80', '85', '90', '95'], 'ans': 2},
+        {'q': 'Dalam 1 minggu (5 hari kerja) target 1.000 unit. Sudah tercapai 650 unit dalam 3 hari. Berapa target sisa 2 hari?', 'opts': ['300', '320', '340', '350'], 'ans': 3},
+        {'q': 'Benang 1 kg bisa membuat 8 meter kain. Berapa kg benang untuk 56 meter kain?', 'opts': ['6 kg', '7 kg', '8 kg', '9 kg'], 'ans': 1},
+        {'q': 'Lembur 2 jam per hari selama 5 hari. Upah lembur Rp 15.000/jam. Berapa total upah lembur?', 'opts': ['Rp 130.000', 'Rp 140.000', 'Rp 150.000', 'Rp 160.000'], 'ans': 2},
+        {'q': 'Sebuah karton berisi 30 potong kain. Jika ada 8 karton penuh dan 1 karton berisi 15 potong, berapa total potong kain?', 'opts': ['245', '250', '255', '260'], 'ans': 2},
     ],
     'staff': [
         {
@@ -1160,6 +1201,17 @@ MATH_QUESTIONS = {
             'q': 'Reject rate target maksimal 3%. Produksi hari ini 850 unit, reject 30 unit. Apakah target tercapai?',
             'opts': ['Ya, reject rate 3,0%', 'Tidak, reject rate 3,53%', 'Ya, reject rate 2,8%', 'Tidak, reject rate 4,0%'], 'ans': 1
         },
+    
+                {'q': 'Efisiensi mesin bulan ini 87%. Target minimal 85%. Jika kapasitas penuh 15.000 unit, berapa unit yang terproduksi?', 'opts': ['12.750 unit', '13.000 unit', '13.050 unit', '13.500 unit'], 'ans': 2},
+        {'q': 'Gaji pokok Rp 4.500.000. Tunjangan transport Rp 300.000. Tunjangan makan Rp 450.000. Dipotong BPJS 1% dari gaji pokok. Berapa take-home pay?', 'opts': ['Rp 5.150.000', 'Rp 5.175.000', 'Rp 5.200.000', 'Rp 5.205.000'], 'ans': 1},
+        {'q': 'Produksi 3 shift: Shift 1 = 2.400 unit, Shift 2 = 2.100 unit, Shift 3 = 1.950 unit. Berapa rata-rata produksi per shift?', 'opts': ['2.100 unit', '2.150 unit', '2.200 unit', '2.250 unit'], 'ans': 1},
+        {'q': 'Target harian 800 unit. Hari Senin: 780, Selasa: 820, Rabu: 760. Berapa rata-rata pencapaian vs target?', 'opts': ['97%', '97,5%', '98%', '98,5%'], 'ans': 0},
+        {'q': 'Stok benang 3 jenis: A=1.200 kg, B=850 kg, C=1.450 kg. Order membutuhkan masing-masing 400 kg. Jenis mana yang tidak cukup?', 'opts': ['Hanya B', 'Hanya A', 'B dan C', 'Semua cukup'], 'ans': 0},
+        {'q': 'Mesin berjalan 22 hari dalam sebulan, 8 jam per hari. Downtime total 12 jam. Berapa persen availability mesin?', 'opts': ['91,8%', '92,5%', '93,2%', '93,8%'], 'ans': 2},
+        {'q': 'Biaya produksi per unit: bahan Rp 12.000, tenaga Rp 5.000, overhead Rp 3.000. Harga jual Rp 25.000. Berapa margin per unit?', 'opts': ['Rp 4.000', 'Rp 5.000', 'Rp 6.000', 'Rp 7.000'], 'ans': 1},
+        {'q': 'Dari 500 karyawan, 35% operator, 45% tenaga harian, sisanya staff. Berapa jumlah staff?', 'opts': ['90 orang', '95 orang', '100 orang', '105 orang'], 'ans': 2},
+        {'q': 'Produksi bulan ini 14.500 unit. Reject 290 unit. Berapa persen yield (produk bagus)?', 'opts': ['97,5%', '98%', '98,5%', '99%'], 'ans': 1},
+        {'q': 'Order: 6.000 meter kain dalam 12 hari kerja. 3 mesin masing-masing 180 m/hari. Apakah bisa selesai tepat waktu?', 'opts': ['Tidak, kurang 480 m', 'Ya, tepat 6.480 m', 'Ya, dengan sisa 480 m', 'Tidak, hanya 5.400 m'], 'ans': 2},
     ],
     'admin': [
         {
@@ -1202,6 +1254,17 @@ MATH_QUESTIONS = {
             'q': 'Sisa kontrak karyawan: 45 hari. Hari ini tanggal 2 April 2026. Kapan kontrak berakhir?',
             'opts': ['15 Mei 2026', '16 Mei 2026', '17 Mei 2026', '18 Mei 2026'], 'ans': 2
         },
+    
+                {'q': 'Anggaran bulanan departemen: Rp 85.000.000. Sudah terpakai 62%. Berapa sisa anggaran?', 'opts': ['Rp 31.300.000', 'Rp 32.300.000', 'Rp 33.300.000', 'Rp 34.300.000'], 'ans': 1},
+        {'q': 'Formula Excel: =COUNTIF(A1:A10,">100"). Ada 10 nilai: 95,110,87,105,120,98,115,88,102,99. Hasilnya?', 'opts': ['3', '4', '5', '6'], 'ans': 1},
+        {'q': 'Karyawan A lembur 3 jam @ Rp 18.750/jam. Karyawan B lembur 5 jam @ Rp 15.000/jam. Total biaya lembur keduanya?', 'opts': ['Rp 131.250', 'Rp 131.500', 'Rp 131.750', 'Rp 132.000'], 'ans': 0},
+        {'q': 'Laporan menunjukkan reject rate 3 bulan terakhir: 2,1%, 3,4%, 1,8%. Berapa rata-rata reject rate?', 'opts': ['2,3%', '2,4%', '2,43%', '2,5%'], 'ans': 2},
+        {'q': 'Harga benang naik 8% dari Rp 45.000/kg. Kebutuhan bulan ini 1.200 kg. Berapa tambahan biaya dibanding bulan lalu?', 'opts': ['Rp 3.960.000', 'Rp 4.160.000', 'Rp 4.320.000', 'Rp 4.500.000'], 'ans': 2},
+        {'q': 'Target rekrutmen: 20 karyawan. Sudah diinterview 35 kandidat, acceptance rate 40%. Berapa yang sudah diterima?', 'opts': ['12 orang', '14 orang', '15 orang', '16 orang'], 'ans': 1},
+        {'q': 'Formula: =VLOOKUP(D2,A2:B10,2,FALSE). D2="MKT-001". Fungsi ini untuk?', 'opts': ['Menghitung jumlah', 'Mencari nilai berdasarkan kode', 'Mengurutkan data', 'Menghitung rata-rata'], 'ans': 1},
+        {'q': 'Turnover karyawan: awal bulan 248 orang, keluar 12, masuk 8. Berapa turnover rate bulan ini?', 'opts': ['3,8%', '4,0%', '4,5%', '4,8%'], 'ans': 3},
+        {'q': 'Data produksi: Min=1.800, Max=2.400, Rata-rata=2.100. Berapa range-nya?', 'opts': ['500', '550', '600', '650'], 'ans': 2},
+        {'q': 'Biaya per karyawan per bulan: gaji Rp 3.800.000, BPJS perusahaan Rp 418.000, THR/12 Rp 316.667. Berapa total cost per karyawan?', 'opts': ['Rp 4.434.667', 'Rp 4.534.667', 'Rp 4.634.667', 'Rp 4.734.667'], 'ans': 1},
     ]
 }
 
@@ -1220,6 +1283,17 @@ LOGIC_QUESTIONS = {
         # Raven style (described in text for operator - simpler)
         {'type': 'matrix', 'q': 'Pola: Baris 1: ▲ ▲▲ ▲▲▲ | Baris 2: ■ ■■ ■■■ | Baris 3: ● ●● ?', 'opts': ['●', '●●●', '●●', '■■■'], 'ans': 1},
         {'type': 'matrix', 'q': 'Urutan gambar: kotak kecil → kotak sedang → kotak besar → kotak kecil → kotak sedang → ?', 'opts': ['kotak kecil', 'kotak besar', 'kotak sedang', 'lingkaran'], 'ans': 1},
+    
+                {'q': 'Lanjutkan urutan: 1, 2, 4, 8, ...', 'opts': ['12', '14', '16', '18'], 'ans': 2},
+        {'q': 'Lanjutkan urutan: 50, 45, 40, 35, ...', 'opts': ['28', '29', '30', '31'], 'ans': 2},
+        {'q': 'Semua karyawan harus pakai APD. Budi adalah karyawan. Maka Budi:', 'opts': ['Mungkin pakai APD', 'Tidak perlu APD', 'Harus pakai APD', 'Tergantung situasi'], 'ans': 2},
+        {'q': 'Jika hari ini Senin, 3 hari lagi adalah hari apa?', 'opts': ['Rabu', 'Kamis', 'Jumat', 'Sabtu'], 'ans': 1},
+        {'q': 'Pola: 1 kotak, 3 kotak, 5 kotak, 7 kotak, ... Berikutnya?', 'opts': ['8 kotak', '9 kotak', '10 kotak', '11 kotak'], 'ans': 1},
+        {'q': 'Lanjutkan urutan: A, C, E, G, ...', 'opts': ['H', 'I', 'J', 'K'], 'ans': 1},
+        {'q': 'Bahan baku datang setiap Senin. Hari ini Kamis. Berapa hari lagi bahan datang?', 'opts': ['3 hari', '4 hari', '5 hari', '6 hari'], 'ans': 0},
+        {'q': 'Mesin A lebih baru dari mesin B. Mesin B lebih baru dari mesin C. Mesin mana yang paling lama?', 'opts': ['Mesin A', 'Mesin B', 'Mesin C', 'Tidak bisa ditentukan'], 'ans': 2},
+        {'q': 'Lanjutkan pola: ○●○○●○○○●... Simbol ke-10 adalah?', 'opts': ['○', '●', '○○', '●●'], 'ans': 0},
+        {'q': 'Gudang A lebih besar dari gudang B. Gudang C lebih kecil dari gudang B. Gudang mana paling kecil?', 'opts': ['A', 'B', 'C', 'Sama besar'], 'ans': 2},
     ],
     'staff': [
         # Number sequences (harder)
@@ -1235,6 +1309,17 @@ LOGIC_QUESTIONS = {
         # Matrix (Raven style - SVG rendered)
         {'type': 'raven', 'q': 'Perhatikan pola matriks 3×3. Baris 1: ○ ○○ ○○○ | Baris 2: □ □□ □□□ | Baris 3: △ △△ ?', 'opts': ['○', '△△', '△△△', '□□□'], 'ans': 2},
         {'type': 'raven', 'q': 'Pola: setiap baris, bentuk bergerak dari kiri ke kanan. Baris 1: ■□□ | Baris 2: □■□ | Baris 3: ?', 'opts': ['■□□', '□□■', '□■□', '■■□'], 'ans': 1},
+    
+                {'q': 'Lanjutkan urutan: 2, 6, 18, 54, ...', 'opts': ['108', '144', '162', '180'], 'ans': 2},
+        {'q': 'Lanjutkan urutan: 81, 27, 9, 3, ...', 'opts': ['0', '1', '2', '3'], 'ans': 1},
+        {'q': 'Semua kepala shift wajib membuat laporan harian. Andi adalah kepala shift. Rudi bukan kepala shift. Siapa yang wajib membuat laporan?', 'opts': ['Rudi', 'Keduanya', 'Andi', 'Tidak ada'], 'ans': 2},
+        {'q': 'Jika MESIN = 68, maka BENANG = ?', 'opts': ['56', '58', '60', '62'], 'ans': 2},
+        {'q': 'Lanjutkan: AZ, BY, CX, DW, ...', 'opts': ['EV', 'EU', 'FV', 'EW'], 'ans': 0},
+        {'q': 'Produk A lebih mahal dari B. B lebih mahal dari C. C lebih mahal dari D. Produk mana yang paling murah?', 'opts': ['A', 'B', 'C', 'D'], 'ans': 3},
+        {'q': 'Jika semua supervisor punya laptop, dan tidak semua karyawan adalah supervisor, maka:', 'opts': ['Semua karyawan punya laptop', 'Tidak ada karyawan yang punya laptop', 'Beberapa karyawan mungkin tidak punya laptop', 'Supervisor tidak punya laptop'], 'ans': 2},
+        {'q': 'Lanjutkan urutan: 7, 14, 28, 56, ...', 'opts': ['96', '102', '112', '128'], 'ans': 2},
+        {'q': 'Dari pernyataan: "Tidak ada produk cacat yang lolos QC" — mana yang pasti benar?', 'opts': ['Semua produk lolos QC', 'Produk yang lolos QC pasti tidak cacat', 'Semua produk cacat', 'QC tidak efektif'], 'ans': 1},
+        {'q': 'Shift kerja: Pagi 06.00-14.00, Siang 14.00-22.00, Malam 22.00-06.00. Jika masuk shift malam hari Senin pukul 22.00, selesai pada:', 'opts': ['Senin 06.00', 'Selasa 06.00', 'Selasa 22.00', 'Rabu 06.00'], 'ans': 1},
     ],
     'admin': [
         # Number sequences
@@ -1249,6 +1334,17 @@ LOGIC_QUESTIONS = {
         {'type': 'logic', 'q': 'Formula: =AVERAGE(B1:B4). B1=80, B2=90, B3=70, B4=60. Hasilnya:', 'opts': ['72', '75', '78', '80'], 'ans': 1},
         {'type': 'logic', 'q': 'Formula: =IF(AND(A1>0,B1>0),"OK","TIDAK"). A1=5, B1=-3. Hasilnya:', 'opts': ['OK', 'TIDAK', 'ERROR', '5'], 'ans': 1},
         {'type': 'raven', 'q': 'Pola matriks: setiap kolom jumlah titik bertambah 1. Baris 3 kolom 1 = 1 titik, kolom 2 = 2 titik, kolom 3 = ?', 'opts': ['2 titik', '3 titik', '4 titik', '1 titik'], 'ans': 1},
+    
+                {'q': 'Lanjutkan urutan: 2, 3, 5, 8, 13, 21, ...', 'opts': ['29', '32', '34', '36'], 'ans': 2},
+        {'q': 'Lanjutkan urutan: 1000, 500, 250, 125, ...', 'opts': ['50', '60', '62.5', '75'], 'ans': 2},
+        {'q': 'Jika semua manajer memiliki laptop dan smartphone, dan Dewi adalah manajer, maka pernyataan yang PASTI benar adalah:', 'opts': ['Dewi hanya punya laptop', 'Dewi punya laptop dan smartphone', 'Dewi mungkin punya smartphone', 'Semua karyawan punya laptop'], 'ans': 1},
+        {'q': 'Pernyataan: "Beberapa karyawan yang rajin mendapat bonus." Mana yang TIDAK bisa disimpulkan?', 'opts': ['Ada karyawan rajin yang dapat bonus', 'Tidak semua karyawan rajin dapat bonus', 'Semua karyawan yang dapat bonus adalah rajin', 'Beberapa karyawan dapat bonus'], 'ans': 2},
+        {'q': 'Di Excel, untuk mengambil 5 karakter dari kiri teks di sel A1, formulanya adalah:', 'opts': ['=RIGHT(A1,5)', '=MID(A1,5,1)', '=LEFT(A1,5)', '=LEN(A1,5)'], 'ans': 2},
+        {'q': 'Lanjutkan: 1, 4, 9, 16, 25, 36, ...', 'opts': ['42', '45', '48', '49'], 'ans': 3},
+        {'q': 'Jika formula Excel =IFERROR(A1/B1,"Error") dan B1=0, hasilnya:', 'opts': ['0', '#DIV/0!', 'Error', 'Blank'], 'ans': 2},
+        {'q': 'Data: 5 karyawan dengan gaji 3jt, 8 karyawan dengan gaji 4jt, 2 karyawan dengan gaji 6jt. Mana yang lebih besar, mean atau median?', 'opts': ['Mean lebih besar', 'Median lebih besar', 'Sama', 'Tidak bisa ditentukan'], 'ans': 0},
+        {'q': 'Lanjutkan pola: 3, 7, 15, 31, 63, ...', 'opts': ['95', '115', '127', '131'], 'ans': 2},
+        {'q': 'Dari pernyataan "Jika absen > 3 hari maka potong gaji", karyawan yang gajinya TIDAK dipotong pasti:', 'opts': ['Absen tepat 3 hari', 'Absen kurang dari 3 hari', 'Tidak pernah absen', 'Absen 3 hari atau kurang'], 'ans': 3},
     ]
 }
 
@@ -1686,6 +1782,434 @@ def tes_selesai():
 
 # ── HR Panel ───────────────────────────────────────────────────────────────────
 
+# ── Print Data Pelamar + Hasil Tes (combined) ─────────────────────────────────
+@app.route('/hr/hasil-tes/<int:result_id>/print')
+@login_required
+def print_hasil_tes(result_id):
+    """Render full printable document: Data Pelamar + Hasil Tes."""
+    with get_db() as db:
+        result  = db.fetchone("SELECT * FROM test_results WHERE id=?", (result_id,))
+        pelamar = db.fetchone("SELECT * FROM data_pelamar WHERE result_id=?", (result_id,))
+    if not result:
+        flash('Data tidak ditemukan.', 'error')
+        return redirect(url_for('hr_hasil_tes'))
+
+    # Parse JSON fields from data_pelamar
+    def parse_json(val):
+        if not val: return []
+        try: return json.loads(val)
+        except: return []
+
+    pelamar_data = {}
+    if pelamar:
+        pelamar_data = dict(pelamar)
+        pelamar_data['keluarga']       = parse_json(pelamar.get('keluarga_json'))
+        pelamar_data['keluarga_menikah'] = parse_json(pelamar.get('keluarga_menikah_json',''))
+        pelamar_data['pendidikan']     = parse_json(pelamar.get('pendidikan_json'))
+        pelamar_data['pekerjaan']      = parse_json(pelamar.get('pekerjaan_json'))
+        pelamar_data['organisasi']     = parse_json(pelamar.get('organisasi_json'))
+        pelamar_data['referensi']      = parse_json(pelamar.get('referensi_json'))
+        pelamar_data['darurat']        = parse_json(pelamar.get('darurat_json'))
+        pelamar_data['pertanyaan']     = parse_json(pelamar.get('pertanyaan_json')) if isinstance(pelamar.get('pertanyaan_json'), str) else {}
+        try:
+            pt = pelamar.get('pertanyaan_json','{}')
+            pelamar_data['pertanyaan'] = json.loads(pt) if pt else {}
+        except: pelamar_data['pertanyaan'] = {}
+
+    pertanyaan_list = [
+        (1,  'Apakah Anda pernah melamar di perusahaan ini sebelumnya?'),
+        (2,  'Selain di sini, di perusahaan mana lagi Anda melamar saat ini?'),
+        (3,  'Apakah Anda mempunyai kerja sampingan? Dimana dan sebagai apa?'),
+        (4,  'Apakah Anda keberatan bila kami minta referensi pada perusahaan tempat Anda bekerja?'),
+        (5,  'Apakah Anda mempunyai teman/saudara yang bekerja pada perusahaan ini? Sebutkan.'),
+        (6,  'Apakah Anda saat ini ada sakit sehingga memerlukan pemeriksaan rutin/khusus?'),
+        (7,  'Apakah Anda pernah menderita sakit keras/kronis/kecelakaan berat? Kapan dan macam apa?'),
+        (8,  'Apakah ada keluarga/saudara yang sakit berat sehingga memerlukan pemantauan khusus dari Anda?'),
+        (9,  'Apakah Anda pernah menjalani pemeriksaan psikologis/psikiates?'),
+        (10, 'Apakah Anda pernah berurusan dengan polisi karena tindakan pidana?'),
+        (11, 'Seandainya diterima, bersediakah Anda bertugas ke luar kota?'),
+        (12, 'Pekerjaan/jabatan apakah yang sesuai dengan cita-cita Anda?'),
+        (13, 'Berapa penghasilan Anda sebulan dan fasilitas apa saja yang diberikan saat ini?'),
+        (14, 'Seandainya diterima, berapa besar gaji dan fasilitas apa saja yang Anda minta?'),
+    ]
+
+    return render_template('print_hasil_tes.html',
+                          result=result,
+                          pelamar=pelamar_data,
+                          pertanyaan_list=pertanyaan_list,
+                          now=datetime.now())
+
+
+# ── Answer Key PDF (HR Reference) ─────────────────────────────────────────────
+@app.route('/hr/answer-key')
+@login_required
+@role_required('hr_head','owner')
+def hr_answer_key():
+    """Generate printable answer key for all test sections."""
+    # Build structured data for template
+    sections = []
+
+    # KETELITIAN
+    for tier in ['operator','staff','admin']:
+        pairs = ACCURACY_PAIRS.get(tier, [])
+        qs = []
+        for i, (a, b, same) in enumerate(pairs, 1):
+            qs.append({'no': i, 'a': a, 'b': b, 'ans': 'SAMA' if same else 'BERBEDA'})
+        sections.append({'section': 'Ketelitian (Sama/Berbeda)', 'tier': tier.capitalize(), 'type': 'ketelitian', 'questions': qs})
+
+    # MATEMATIKA
+    for tier in ['operator','staff','admin']:
+        pool = MATH_QUESTIONS.get(tier, [])
+        qs = []
+        for i, q in enumerate(pool, 1):
+            opts = q.get('opts', [])
+            ans_idx = q.get('ans', 0)
+            qs.append({'no': i, 'q': q['q'], 'opts': opts, 'ans_idx': ans_idx, 'ans': opts[ans_idx] if ans_idx < len(opts) else ''})
+        sections.append({'section': 'Matematika', 'tier': tier.capitalize(), 'type': 'multiple', 'questions': qs})
+
+    # LOGIKA
+    for tier in ['operator','staff','admin']:
+        pool = LOGIC_QUESTIONS.get(tier, [])
+        qs = []
+        for i, q in enumerate(pool, 1):
+            opts = q.get('opts', [])
+            ans_idx = q.get('ans', 0)
+            qs.append({'no': i, 'q': q['q'], 'opts': opts, 'ans_idx': ans_idx, 'ans': opts[ans_idx] if ans_idx < len(opts) else ''})
+        sections.append({'section': 'Logika', 'tier': tier.capitalize(), 'type': 'multiple', 'questions': qs})
+
+    return render_template('hr_answer_key.html', sections=sections)
+
+
+# ── Print Full PDF (Data Pelamar + Hasil Tes + Deklarasi) ─────────────────────
+@app.route('/hr/hasil-tes/<int:result_id>/print')
+@login_required
+def print_hasil_tes(result_id):
+    """Generate combined PDF: Data Pelamar + Hasil Tes + Deklarasi."""
+    with get_db() as db:
+        result  = db.fetchone("SELECT * FROM test_results WHERE id=?", (result_id,))
+        pelamar = db.fetchone("SELECT * FROM data_pelamar WHERE result_id=?", (result_id,))
+    if not result:
+        flash('Data tidak ditemukan.', 'error')
+        return redirect(url_for('hr_hasil_tes'))
+
+    import io, json as _json
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    from reportlab.lib.units import cm
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=2*cm, rightMargin=2*cm,
+                            topMargin=1.5*cm, bottomMargin=1.5*cm)
+
+    styles = getSampleStyleSheet()
+    def ps(name, **kw):
+        return ParagraphStyle(name, parent=styles['Normal'], **kw)
+
+    title_s  = ps('t', fontSize=13, fontName='Helvetica-Bold', textColor=colors.HexColor('#1A1916'), spaceAfter=2)
+    sub_s    = ps('sub', fontSize=8, textColor=colors.HexColor('#9B9A94'), spaceAfter=6)
+    sec_s    = ps('sec', fontSize=10, fontName='Helvetica-Bold', textColor=colors.white, spaceAfter=0)
+    label_s  = ps('lbl', fontSize=8, textColor=colors.HexColor('#9B9A94'), fontName='Helvetica-Bold', spaceBefore=0)
+    value_s  = ps('val', fontSize=9, textColor=colors.HexColor('#1A1916'), spaceAfter=4)
+    body_s   = ps('bod', fontSize=9, textColor=colors.HexColor('#1A1916'), leading=13)
+    note_s   = ps('not', fontSize=8, textColor=colors.HexColor('#6B6A64'))
+    decl_s   = ps('dcl', fontSize=8, textColor=colors.HexColor('#1A1916'), leading=13, spaceAfter=6)
+
+    def section_header(title, color='#1A1916'):
+        data = [[Paragraph(title, sec_s)]]
+        t = Table(data, colWidths=[17*cm])
+        t.setStyle(TableStyle([
+            ('BACKGROUND',(0,0),(-1,-1),colors.HexColor(color)),
+            ('PADDING',(0,0),(-1,-1),6),
+        ]))
+        return t
+
+    def kv_row(label, value):
+        return [Paragraph(label, label_s), Paragraph(str(value) if value else '—', value_s)]
+
+    story = []
+
+    # ── Header ──────────────────────────────────────────────────────────────────
+    header_data = [[
+        Paragraph('PT MITRA KARYA TEXINDO', ps('h1', fontSize=11, fontName='Helvetica-Bold', textColor=colors.HexColor('#1A1916'))),
+        Paragraph(f'Tanggal Tes: {result["tanggal_tes"]}', ps('h2', fontSize=8, textColor=colors.HexColor('#9B9A94'), alignment=TA_RIGHT))
+    ]]
+    ht = Table(header_data, colWidths=[11*cm, 6*cm])
+    ht.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE'),('PADDING',(0,0),(-1,-1),0)]))
+    story.append(ht)
+    story.append(HRFlowable(width='100%', thickness=1.5, color=colors.HexColor('#1A1916'), spaceAfter=6))
+    story.append(Paragraph('DATA PRIBADI PELAMAR & HASIL TES', title_s))
+    story.append(Spacer(1, 0.2*cm))
+
+    # ── Data Pribadi ────────────────────────────────────────────────────────────
+    story.append(section_header('1. DATA PRIBADI'))
+    story.append(Spacer(1, 0.1*cm))
+
+    if pelamar:
+        rows = [
+            kv_row('Nama Lengkap', pelamar.get('nama_lengkap') or result.get('nama_lengkap')),
+            kv_row('NIK KTP', pelamar.get('nik') or result.get('nik')),
+            kv_row('Tempat, Tanggal Lahir', f"{pelamar.get('tempat_lahir','—')}, {pelamar.get('tanggal_lahir','—')}"),
+            kv_row('Jenis Kelamin', pelamar.get('jenis_kelamin')),
+            kv_row('Agama', pelamar.get('agama')),
+            kv_row('Tinggi / Berat', f"{pelamar.get('tinggi','—')} cm / {pelamar.get('berat','—')} kg"),
+            kv_row('No. KTP', pelamar.get('no_ktp')),
+            kv_row('Tipe SIM', pelamar.get('no_sim')),
+            kv_row('Status Perkawinan', pelamar.get('status_perkawinan')),
+            kv_row('Alamat KTP', pelamar.get('alamat_ktp')),
+            kv_row('Alamat Tinggal', pelamar.get('alamat_tinggal')),
+            kv_row('No. HP', pelamar.get('no_hp')),
+            kv_row('Email', pelamar.get('email')),
+            kv_row('Rumah', pelamar.get('rumah_status')),
+            kv_row('Kendaraan', f"{pelamar.get('kendaraan','—')} {pelamar.get('kendaraan_merk','')} ({pelamar.get('kendaraan_milik','—')})"),
+            kv_row('Sosial Media', f"FB: {pelamar.get('sosmed_fb','—')} | IG: {pelamar.get('sosmed_ig','—')}"),
+        ]
+        for pair in rows:
+            t = Table([pair], colWidths=[4*cm, 13*cm])
+            t.setStyle(TableStyle([('PADDING',(0,0),(-1,-1),3),('VALIGN',(0,0),(-1,-1),'TOP')]))
+            story.append(t)
+    else:
+        story.append(Paragraph(f'Nama: {result["nama_lengkap"]}   NIK: {result["nik"]}', body_s))
+
+    # ── Susunan Keluarga ────────────────────────────────────────────────────────
+    if pelamar and pelamar.get('keluarga_json'):
+        try:
+            keluarga = _json.loads(pelamar['keluarga_json'])
+            if keluarga:
+                story.append(Spacer(1, 0.2*cm))
+                story.append(section_header('2. SUSUNAN KELUARGA'))
+                story.append(Spacer(1, 0.1*cm))
+                rows = [['Hubungan','Nama','L/P','Usia','Pendidikan','Pekerjaan']]
+                for k in keluarga:
+                    rows.append([k.get('hubungan',''), k.get('nama',''), k.get('lp',''), str(k.get('usia','')), k.get('pendidikan',''), k.get('pekerjaan','')])
+                t = Table(rows, colWidths=[2.5*cm,3.5*cm,1*cm,1.2*cm,2.5*cm,6.3*cm])
+                t.setStyle(TableStyle([
+                    ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#F5F4F0')),
+                    ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+                    ('FONTSIZE',(0,0),(-1,-1),8),
+                    ('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#E0DED6')),
+                    ('PADDING',(0,0),(-1,-1),4),
+                    ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#FAFAF8')]),
+                ]))
+                story.append(t)
+        except: pass
+
+    # ── Pendidikan ──────────────────────────────────────────────────────────────
+    if pelamar and pelamar.get('pendidikan_json'):
+        try:
+            pendidikan = _json.loads(pelamar['pendidikan_json'])
+            if pendidikan:
+                story.append(Spacer(1, 0.2*cm))
+                story.append(section_header('3. RIWAYAT PENDIDIKAN'))
+                story.append(Spacer(1, 0.1*cm))
+                rows = [['Tingkat','Nama Sekolah','Kota','Jurusan','Tahun','Lulus']]
+                for p in pendidikan:
+                    rows.append([p.get('tingkat',''), p.get('nama_sekolah',''), p.get('kota',''), p.get('jurusan',''), p.get('tahun',''), p.get('lulus','')])
+                t = Table(rows, colWidths=[1.8*cm,4*cm,2.5*cm,3*cm,1.5*cm,4.2*cm])
+                t.setStyle(TableStyle([
+                    ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#F5F4F0')),
+                    ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+                    ('FONTSIZE',(0,0),(-1,-1),8),
+                    ('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#E0DED6')),
+                    ('PADDING',(0,0),(-1,-1),4),
+                ]))
+                story.append(t)
+        except: pass
+
+    # ── Riwayat Pekerjaan ───────────────────────────────────────────────────────
+    if pelamar and pelamar.get('pekerjaan_json'):
+        try:
+            pekerjaan = _json.loads(pelamar['pekerjaan_json'])
+            if pekerjaan:
+                story.append(Spacer(1, 0.2*cm))
+                story.append(section_header('4. RIWAYAT PEKERJAAN'))
+                story.append(Spacer(1, 0.1*cm))
+                rows = [['Perusahaan','Jabatan','Lama Kerja','Gaji Terakhir','Alasan Berhenti']]
+                for p in pekerjaan:
+                    rows.append([p.get('perusahaan',''), p.get('jabatan',''), p.get('lama',''), p.get('gaji',''), p.get('alasan','')])
+                t = Table(rows, colWidths=[3.5*cm,2.5*cm,2*cm,2.5*cm,6.5*cm])
+                t.setStyle(TableStyle([
+                    ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#F5F4F0')),
+                    ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+                    ('FONTSIZE',(0,0),(-1,-1),8),
+                    ('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#E0DED6')),
+                    ('PADDING',(0,0),(-1,-1),4),
+                ]))
+                story.append(t)
+        except: pass
+
+    # ── Kontak Darurat ──────────────────────────────────────────────────────────
+    if pelamar and pelamar.get('darurat_json'):
+        try:
+            darurat = _json.loads(pelamar['darurat_json'])
+            if darurat:
+                story.append(Spacer(1, 0.2*cm))
+                story.append(section_header('5. KONTAK DARURAT'))
+                story.append(Spacer(1, 0.1*cm))
+                rows = [['Nama','Telepon','Pekerjaan','Hubungan']]
+                for d in darurat:
+                    rows.append([d.get('nama',''), d.get('telepon',''), d.get('pekerjaan',''), d.get('hubungan','')])
+                t = Table(rows, colWidths=[4*cm,3.5*cm,4.5*cm,5*cm])
+                t.setStyle(TableStyle([
+                    ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#F5F4F0')),
+                    ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+                    ('FONTSIZE',(0,0),(-1,-1),8),
+                    ('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#E0DED6')),
+                    ('PADDING',(0,0),(-1,-1),4),
+                ]))
+                story.append(t)
+        except: pass
+
+    # ── Pertanyaan ──────────────────────────────────────────────────────────────
+    if pelamar and pelamar.get('pertanyaan_json'):
+        try:
+            pertanyaan = _json.loads(pelamar['pertanyaan_json'])
+            if pertanyaan:
+                story.append(Spacer(1, 0.2*cm))
+                story.append(section_header('6. PERTANYAAN WAWANCARA'))
+                story.append(Spacer(1, 0.1*cm))
+                plist = [
+                    (1,'Apakah Anda pernah melamar di perusahaan ini sebelumnya?'),
+                    (2,'Selain di sini, di perusahaan mana lagi Anda melamar saat ini?'),
+                    (3,'Apakah Anda mempunyai kerja sampingan?'),
+                    (4,'Apakah Anda keberatan bila kami minta referensi pada perusahaan tempat Anda bekerja?'),
+                    (5,'Apakah Anda mempunyai teman/saudara yang bekerja pada perusahaan ini?'),
+                    (6,'Apakah Anda saat ini ada sakit sehingga memerlukan pemeriksaan rutin/khusus?'),
+                    (7,'Apakah Anda pernah menderita sakit keras/kronis/kecelakaan berat?'),
+                    (8,'Apakah ada keluarga/saudara yang sakit berat memerlukan pemantauan khusus dari Anda?'),
+                    (9,'Apakah Anda pernah menjalani pemeriksaan psikologis/psikiates?'),
+                    (10,'Apakah Anda pernah berurusan dengan polisi karena tindakan pidana?'),
+                    (11,'Seandainya diterima, bersediakah Anda bertugas ke luar kota?'),
+                    (12,'Pekerjaan/jabatan apakah yang sesuai dengan cita-cita Anda?'),
+                    (13,'Berapa penghasilan Anda sebulan dan fasilitas apa saja yang diberikan saat ini?'),
+                    (14,'Seandainya diterima, berapa besar gaji dan fasilitas apa saja yang Anda minta?'),
+                ]
+                for num, q_text in plist:
+                    ans = pertanyaan.get(str(num), '—')
+                    story.append(Paragraph(f'{num}. {q_text}', note_s))
+                    story.append(Paragraph(f'    Jawaban: {ans}', body_s))
+                    story.append(Spacer(1, 0.08*cm))
+        except: pass
+
+    # ── Deklarasi ───────────────────────────────────────────────────────────────
+    story.append(Spacer(1, 0.3*cm))
+    story.append(section_header('7. PERNYATAAN / DEKLARASI', '#7A4A00'))
+    story.append(Spacer(1, 0.1*cm))
+    decl_text = (
+        "Dengan mengisi formulir ini, saya menyatakan bahwa: (1) Seluruh data dan informasi yang saya isi "
+        "adalah benar, lengkap, dan dapat dipertanggungjawabkan. (2) Formulir ini akan menjadi bagian dari "
+        "perjanjian kerja apabila saya diterima bekerja di PT Mitra Karya Texindo. (3) Apabila di kemudian "
+        "hari terbukti terdapat data yang tidak benar atau menyesatkan, PT Mitra Karya Texindo berhak "
+        "mengakhiri hubungan kerja tanpa kewajiban memberikan kompensasi apapun, dan saya wajib membayar "
+        "ganti rugi sesuai Pasal 62 UU No. 13 Tahun 2003 tentang Ketenagakerjaan. "
+        "(4) Pernyataan ini saya buat dengan kesadaran penuh, tanpa paksaan dari pihak manapun."
+    )
+    story.append(Paragraph(decl_text, decl_s))
+    story.append(Spacer(1, 0.15*cm))
+    if pelamar:
+        decl_nama = pelamar.get('deklarasi_nama') or result.get('nama_lengkap','')
+        decl_nik  = pelamar.get('nik','')
+        decl_tgl  = result.get('tanggal_tes','')
+        sig_data = [
+            [Paragraph('Nama', label_s), Paragraph(f': {decl_nama}', value_s)],
+            [Paragraph('NIK KTP', label_s), Paragraph(f': {decl_nik}', value_s)],
+            [Paragraph('Tanggal', label_s), Paragraph(f': {decl_tgl}', value_s)],
+            [Paragraph('Tanda Persetujuan', label_s), Paragraph(': Diisi secara digital oleh peserta', note_s)],
+        ]
+        for row in sig_data:
+            t = Table([row], colWidths=[3.5*cm, 13.5*cm])
+            t.setStyle(TableStyle([('PADDING',(0,0),(-1,-1),2),('VALIGN',(0,0),(-1,-1),'TOP')]))
+            story.append(t)
+
+    # ── HASIL TES ───────────────────────────────────────────────────────────────
+    story.append(PageBreak())
+    story.append(section_header('HASIL TES KANDIDAT'))
+    story.append(Spacer(1, 0.2*cm))
+
+    info_rows = [
+        kv_row('Nama', result.get('nama_lengkap')),
+        kv_row('NIK', result.get('nik')),
+        kv_row('Posisi Dilamar', result.get('posisi')),
+        kv_row('Level Tes', result.get('tier','').capitalize()),
+        kv_row('Tanggal Tes', str(result.get('tanggal_tes',''))),
+    ]
+    for row in info_rows:
+        t = Table([row], colWidths=[4*cm, 13*cm])
+        t.setStyle(TableStyle([('PADDING',(0,0),(-1,-1),3),('VALIGN',(0,0),(-1,-1),'TOP')]))
+        story.append(t)
+
+    story.append(Spacer(1, 0.3*cm))
+
+    # Score boxes
+    sk = result.get('skor_ketelitian', 0)
+    sm = result.get('skor_matematika', 0)
+    sl = result.get('skor_logika', 0)
+    se = result.get('skor_excel','')
+    verdict = result.get('verdict','PENDING')
+
+    def score_color(passed):
+        return colors.HexColor('#E8F5EE') if passed else colors.HexColor('#FAEAEA')
+    def score_text_color(passed):
+        return colors.HexColor('#1D6B3E') if passed else colors.HexColor('#8B1F1F')
+
+    score_data = [
+        [
+            Paragraph('KETELITIAN', ps('sl', fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
+            Paragraph('MATEMATIKA', ps('sl2', fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
+            Paragraph('LOGIKA', ps('sl3', fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
+            Paragraph('EXCEL / KOMPUTER', ps('sl4', fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
+        ],
+        [
+            Paragraph(f'{sk}/10', ps('sv', fontSize=20, fontName='Helvetica-Bold', textColor=score_text_color(sk>=7), alignment=TA_CENTER)),
+            Paragraph(f'{sm}/5',  ps('sv2', fontSize=20, fontName='Helvetica-Bold', textColor=score_text_color(sm>=4), alignment=TA_CENTER)),
+            Paragraph(f'{sl}/10', ps('sv3', fontSize=20, fontName='Helvetica-Bold', textColor=score_text_color(sl>=7), alignment=TA_CENTER)),
+            Paragraph(se or '—',  ps('sv4', fontSize=14, fontName='Helvetica-Bold', textColor=score_text_color(se=='LULUS'), alignment=TA_CENTER)),
+        ],
+        [
+            Paragraph('LULUS' if sk>=7 else 'TIDAK LULUS', ps('ss', fontSize=9, textColor=score_text_color(sk>=7), alignment=TA_CENTER)),
+            Paragraph('LULUS' if sm>=4 else 'TIDAK LULUS', ps('ss2', fontSize=9, textColor=score_text_color(sm>=4), alignment=TA_CENTER)),
+            Paragraph('LULUS' if sl>=7 else 'TIDAK LULUS', ps('ss3', fontSize=9, textColor=score_text_color(sl>=7), alignment=TA_CENTER)),
+            Paragraph(se or 'BELUM DINILAI', ps('ss4', fontSize=9, textColor=score_text_color(se=='LULUS'), alignment=TA_CENTER)),
+        ],
+    ]
+    st = Table(score_data, colWidths=[4.25*cm]*4)
+    st.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(0,2), score_color(sk>=7)),
+        ('BACKGROUND',(1,0),(1,2), score_color(sm>=4)),
+        ('BACKGROUND',(2,0),(2,2), score_color(sl>=7)),
+        ('BACKGROUND',(3,0),(3,2), score_color(se=='LULUS')),
+        ('BOX',(0,0),(-1,-1),1,colors.HexColor('#E0DED6')),
+        ('INNERGRID',(0,0),(-1,-1),0.5,colors.HexColor('#E0DED6')),
+        ('PADDING',(0,0),(-1,-1),8),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('ROWBACKGROUNDS',(0,0),(-1,-1),[colors.transparent,colors.transparent,colors.transparent]),
+    ]))
+    story.append(st)
+    story.append(Spacer(1, 0.4*cm))
+
+    # Final verdict
+    v_color = colors.HexColor('#1D6B3E') if verdict == 'LULUS' else colors.HexColor('#8B1F1F')
+    v_bg = colors.HexColor('#E8F5EE') if verdict == 'LULUS' else colors.HexColor('#FAEAEA')
+    vt = Table([[Paragraph(f'HASIL AKHIR: {verdict}', ps('verd', fontSize=16, fontName='Helvetica-Bold', textColor=v_color, alignment=TA_CENTER))]], colWidths=[17*cm])
+    vt.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),v_bg),('PADDING',(0,0),(-1,-1),14),('BOX',(0,0),(-1,-1),1.5,v_color)]))
+    story.append(vt)
+    story.append(Spacer(1, 0.4*cm))
+    story.append(Paragraph('Dokumen ini diterbitkan oleh Sistem HR PT Mitra Karya Texindo. Bersifat rahasia dan hanya untuk keperluan internal.', ps('foot', fontSize=7, textColor=colors.HexColor('#9B9A94'), alignment=TA_CENTER)))
+
+    doc.build(story)
+    buf.seek(0)
+
+    safe_name = result.get('nama_lengkap','kandidat').replace(' ','_')
+    filename = f"DataPelamar_{safe_name}_{result.get('tanggal_tes','')}.pdf"
+
+    from flask import Response
+    return Response(buf.read(), mimetype='application/pdf',
+                    headers={'Content-Disposition': f'attachment; filename="{filename}"'})
+
+
 @app.route('/hr/hasil-tes')
 @login_required
 def hr_hasil_tes():
@@ -1949,6 +2473,7 @@ def arsip_hasil_tes(result_id):
 # ── Update checklist ───────────────────────────────────────────────────────────
 @app.route('/hr/hasil-tes/<int:result_id>/checklist', methods=['POST'])
 @login_required
+@role_required('hr_head','owner')
 def update_checklist(result_id):
     field = request.form.get('field')
     value = int(request.form.get('value', 0))
@@ -1964,7 +2489,7 @@ def update_checklist(result_id):
 # ── Terima sebagai Karyawan ────────────────────────────────────────────────────
 @app.route('/hr/hasil-tes/<int:result_id>/terima')
 @login_required
-@role_required('hr_head','owner')
+@role_required('hr_head','owner','hr_staff')
 def terima_karyawan(result_id):
     """Pre-fill add staff form with candidate data."""
     with get_db() as db:
@@ -1987,19 +2512,32 @@ def get_pelamar_data(result_id):
         result  = db.fetchone("SELECT * FROM test_results WHERE id=?", (result_id,))
     if not pelamar:
         return jsonify({'found': False})
+
+    # Get first emergency contact
+    darurat = []
+    try:
+        darurat = json.loads(pelamar.get('darurat_json') or '[]')
+    except: pass
+    ec_name  = darurat[0].get('nama','')  if darurat else ''
+    ec_phone = darurat[0].get('telepon','') if darurat else ''
+    ec_rel   = darurat[0].get('hubungan','') if darurat else ''
+
+    # Clear session import flag after data is fetched
+    session.pop('import_from_tes', None)
+
     return jsonify({
         'found': True,
-        'nama_lengkap': pelamar.get('nama_lengkap') or result.get('nama_lengkap',''),
-        'ktp_number': pelamar.get('nik',''),
-        'birth_date': pelamar.get('tanggal_lahir',''),
-        'birth_place': pelamar.get('tempat_lahir',''),
-        'gender': pelamar.get('jenis_kelamin',''),
-        'religion': pelamar.get('agama',''),
-        'address': pelamar.get('alamat_tinggal',''),
-        'phone': pelamar.get('no_hp',''),
-        'education': '',
-        'emergency_contact': '',
-        'emergency_phone': '',
+        'nama_lengkap':       pelamar.get('nama_lengkap') or result.get('nama_lengkap',''),
+        'ktp_number':         pelamar.get('nik','') or result.get('nik',''),
+        'birth_date':         pelamar.get('tanggal_lahir',''),
+        'birth_place':        pelamar.get('tempat_lahir',''),
+        'gender':             pelamar.get('jenis_kelamin',''),
+        'religion':           pelamar.get('agama',''),
+        'address':            pelamar.get('alamat_tinggal',''),
+        'phone':              pelamar.get('no_hp',''),
+        'emergency_contact':  ec_name,
+        'emergency_phone':    ec_phone,
+        'emergency_relationship': ec_rel,
     })
 
 # Initialize DB at startup — called here so all functions are defined first

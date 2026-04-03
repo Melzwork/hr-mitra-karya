@@ -120,8 +120,14 @@ textarea{resize:vertical;min-height:60px}
             <input type="text" name="no_ktp" required maxlength="16" placeholder="16 digit NIK" value="{{ form_data.get('no_ktp','') }}">
           </div>
           <div class="field">
-            <label>No. SIM A/C</label>
-            <input type="text" name="no_sim" placeholder="Nomor SIM (jika ada)" value="{{ form_data.get('no_sim','') }}">
+            <label>Tipe SIM</label>
+            <select name="no_sim">
+              <option value="">— Pilih —</option>
+              <option value="A" {{ 'selected' if form_data.get('no_sim')=='A' }}>A</option>
+              <option value="B" {{ 'selected' if form_data.get('no_sim')=='B' }}>B</option>
+              <option value="C" {{ 'selected' if form_data.get('no_sim')=='C' }}>C</option>
+              <option value="Tidak Ada" {{ 'selected' if form_data.get('no_sim')=='Tidak Ada' }}>Tidak Ada</option>
+            </select>
           </div>
           <div class="field">
             <label>Tempat Lahir <span class="req">*</span></label>
@@ -155,7 +161,7 @@ textarea{resize:vertical;min-height:60px}
           </div>
           <div class="field">
             <label>Kendaraan</label>
-            <input type="text" name="kendaraan" placeholder="Motor/Mobil/Tidak ada" value="{{ form_data.get('kendaraan','') }}">
+            <input type="text" name="kendaraan" placeholder="" value="{{ form_data.get('kendaraan','') }}">
           </div>
           <div class="field">
             <label>Jenis Merk & Tahun</label>
@@ -184,17 +190,30 @@ textarea{resize:vertical;min-height:60px}
 
     <!-- SUSUNAN KELUARGA -->
     <div class="section">
-      <div class="section-header">2. Susunan Keluarga (Ayah, Ibu, Kakak, Adik — termasuk diri sendiri)</div>
+      <div class="section-header">2. Susunan Keluarga (Ayah, Ibu, Kakak, Adik — <strong>termasuk diri sendiri</strong> — wajib isi minimal 3 baris)</div>
       <div class="section-body">
         <table class="table-section" id="tbl-kel">
           <thead><tr><th>Hubungan</th><th>Nama</th><th>L/P</th><th>Usia</th><th>Pendidikan</th><th>Pekerjaan</th></tr></thead>
           <tbody>
             {% for i in range(10) %}
             <tr>
-              <td><input type="text" name="kel_hubungan_{{ i }}" placeholder="Ayah/Ibu/Kakak..."></td>
-              <td><input type="text" name="kel_nama_{{ i }}" placeholder="Nama"></td>
-              <td><select name="kel_lp_{{ i }}"><option value="">-</option><option>L</option><option>P</option></select></td>
-              <td><input type="number" name="kel_usia_{{ i }}" placeholder="Usia" style="width:70px"></td>
+              <td>
+                <select name="kel_hubungan_{{ i }}" {{ 'required' if i < 3 else '' }}>
+                  <option value="">— Pilih —</option>
+                  <option>Diri Sendiri</option>
+                  <option>Ayah</option>
+                  <option>Ibu</option>
+                  <option>Suami</option>
+                  <option>Istri</option>
+                  <option>Kakak</option>
+                  <option>Adik</option>
+                  <option>Anak</option>
+                  <option>Lainnya</option>
+                </select>
+              </td>
+              <td><input type="text" name="kel_nama_{{ i }}" placeholder="Nama" {{ 'required' if i < 3 else '' }}></td>
+              <td><select name="kel_lp_{{ i }}" {{ 'required' if i < 3 else '' }}><option value="">-</option><option>L</option><option>P</option></select></td>
+              <td><input type="number" name="kel_usia_{{ i }}" placeholder="Usia" style="width:70px" {{ 'required' if i < 3 else '' }}></td>
               <td><input type="text" name="kel_pendidikan_{{ i }}" placeholder="SMA/S1..."></td>
               <td><input type="text" name="kel_pekerjaan_{{ i }}" placeholder="Pekerjaan"></td>
             </tr>
@@ -213,7 +232,16 @@ textarea{resize:vertical;min-height:60px}
           <tbody>
             {% for i in range(7) %}
             <tr>
-              <td><input type="text" name="kelm_hubungan_{{ i }}" placeholder="Suami/Istri/Anak..."></td>
+              <td>
+                <select name="kelm_hubungan_{{ i }}">
+                  <option value="">— Pilih —</option>
+                  <option>Diri Sendiri</option>
+                  <option>Suami</option>
+                  <option>Istri</option>
+                  <option>Anak</option>
+                  <option>Lainnya</option>
+                </select>
+              </td>
               <td><input type="text" name="kelm_nama_{{ i }}" placeholder="Nama"></td>
               <td><select name="kelm_lp_{{ i }}"><option value="">-</option><option>L</option><option>P</option></select></td>
               <td><input type="number" name="kelm_usia_{{ i }}" placeholder="Usia" style="width:70px"></td>
@@ -235,12 +263,12 @@ textarea{resize:vertical;min-height:60px}
           <tbody>
             {% for i in range(5) %}
             <tr>
-              <td><select name="pend_tingkat_{{ i }}"><option value="">-</option><option>SD</option><option>SMP</option><option>SMA/SMK</option><option>D3</option><option>S1</option><option>S2</option></select></td>
-              <td><input type="text" name="pend_nama_sekolah_{{ i }}" placeholder="Nama sekolah"></td>
+              <td><select name="pend_tingkat_{{ i }}" {{ 'required' if i == 0 else '' }}><option value="">-</option><option>SD</option><option>SMP</option><option>SMA/SMK</option><option>D3</option><option>S1</option><option>S2</option></select></td>
+              <td><input type="text" name="pend_nama_sekolah_{{ i }}" placeholder="Nama sekolah" {{ 'required' if i == 0 else '' }}></td>
               <td><input type="text" name="pend_kota_{{ i }}" placeholder="Kota"></td>
               <td><input type="text" name="pend_jurusan_{{ i }}" placeholder="Jurusan"></td>
-              <td><input type="text" name="pend_tahun_{{ i }}" placeholder="2020" style="width:80px"></td>
-              <td><select name="pend_lulus_{{ i }}"><option value="">-</option><option>Lulus</option><option>Tidak Lulus</option></select></td>
+              <td><input type="text" name="pend_tahun_{{ i }}" placeholder="2020" style="width:80px" {{ 'required' if i == 0 else '' }}></td>
+              <td><select name="pend_lulus_{{ i }}" {{ 'required' if i == 0 else '' }}><option value="">-</option><option>Lulus</option><option>Tidak Lulus</option></select></td>
             </tr>
             {% endfor %}
           </tbody>
@@ -250,16 +278,16 @@ textarea{resize:vertical;min-height:60px}
 
     <!-- RIWAYAT PEKERJAAN -->
     <div class="section">
-      <div class="section-header">5. Riwayat Pekerjaan (terbaru dahulu)</div>
+      <div class="section-header">5. Riwayat Pekerjaan (terbaru) — wajib isi minimal 1 baris</div>
       <div class="section-body">
         <table class="table-section">
           <thead><tr><th>Nama Perusahaan</th><th>Jabatan</th><th>Lama Kerja</th><th>Gaji Terakhir</th><th>Alasan Berhenti</th></tr></thead>
           <tbody>
             {% for i in range(5) %}
             <tr>
-              <td><input type="text" name="kerja_perusahaan_{{ i }}" placeholder="PT/CV..."></td>
-              <td><input type="text" name="kerja_jabatan_{{ i }}" placeholder="Jabatan"></td>
-              <td><input type="text" name="kerja_lama_{{ i }}" placeholder="2 tahun"></td>
+              <td><input type="text" name="kerja_perusahaan_{{ i }}" placeholder="PT/CV..." {{ 'required' if i == 0 else '' }}></td>
+              <td><input type="text" name="kerja_jabatan_{{ i }}" placeholder="Jabatan" {{ 'required' if i == 0 else '' }}></td>
+              <td><input type="text" name="kerja_lama_{{ i }}" placeholder="2 tahun" {{ 'required' if i == 0 else '' }}></td>
               <td><input type="text" name="kerja_gaji_{{ i }}" placeholder="Rp..."></td>
               <td><input type="text" name="kerja_alasan_{{ i }}" placeholder="Alasan berhenti"></td>
             </tr>
@@ -278,8 +306,8 @@ textarea{resize:vertical;min-height:60px}
           <tbody>
             {% for i in range(5) %}
             <tr>
-              <td><input type="text" name="org_nama_{{ i }}" placeholder="Nama organisasi"></td>
-              <td><input type="text" name="org_jabatan_{{ i }}" placeholder="Jabatan"></td>
+              <td><input type="text" name="org_nama_{{ i }}" placeholder="Nama organisasi" {{ 'required' if i == 0 else '' }}></td>
+              <td><input type="text" name="org_jabatan_{{ i }}" placeholder="Jabatan" {{ 'required' if i == 0 else '' }}></td>
               <td><input type="text" name="org_periode_{{ i }}" placeholder="2018-2020"></td>
               <td><input type="text" name="org_kota_{{ i }}" placeholder="Kota"></td>
             </tr>
@@ -353,7 +381,18 @@ textarea{resize:vertical;min-height:60px}
         <div class="pertanyaan-item">
           <div class="p-num">PERTANYAAN {{ num }}</div>
           <div class="p-text">{{ text }}</div>
+          {% if num in [1,3,4,5,6,7,9,10,11] %}
+          <div style="display:flex;gap:20px;margin-top:4px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer">
+              <input type="radio" name="p{{ num }}" value="Ya" required> Ya
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer">
+              <input type="radio" name="p{{ num }}" value="Tidak"> Tidak
+            </label>
+          </div>
+          {% else %}
           <textarea name="p{{ num }}" required rows="2" placeholder="Jawaban Anda..."></textarea>
+          {% endif %}
         </div>
         {% endfor %}
       </div>
@@ -379,9 +418,15 @@ textarea{resize:vertical;min-height:60px}
             <input type="checkbox" id="setuju" required>
             <label for="setuju">Saya menyatakan bahwa seluruh data yang saya isi adalah benar dan saya menyetujui pernyataan di atas.</label>
           </div>
-          <div class="field">
-            <label>Nama Lengkap (sebagai tanda persetujuan digital) <span class="req">*</span></label>
-            <input type="text" name="deklarasi_nama" required placeholder="Ketik nama lengkap Anda" value="{{ form_data.get('deklarasi_nama','') }}">
+          <div class="grid">
+            <div class="field">
+              <label>Nama Lengkap (sebagai tanda persetujuan digital) <span class="req">*</span></label>
+              <input type="text" name="deklarasi_nama" required placeholder="Ketik nama lengkap Anda" value="{{ form_data.get('deklarasi_nama','') }}">
+            </div>
+            <div class="field">
+              <label>No. KTP <span class="req">*</span></label>
+              <input type="text" name="deklarasi_nik" required maxlength="16" pattern="\d{16}" placeholder="16 digit NIK" value="{{ form_data.get('deklarasi_nik','') }}">
+            </div>
           </div>
         </div>
         <button type="submit" class="btn-submit" style="margin-top:16px">Simpan Data & Lanjutkan ke Tes →</button>

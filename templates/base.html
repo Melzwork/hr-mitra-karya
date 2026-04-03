@@ -239,8 +239,15 @@ textarea { resize: vertical; min-height: 80px; }
     <a href="{{ url_for('sponsors') }}" class="nav-item {% if request.endpoint=='sponsors' %}active{% endif %}">
       <span class="icon">🤝</span> Sponsor
     </a>
+    {% endif %}
+    {% if session.role in ('hr_head','owner','hr_staff') %}
     <a href="{{ url_for('hr_hasil_tes') }}" class="nav-item {% if request.endpoint=='hr_hasil_tes' %}active{% endif %}">
       <span class="icon">📝</span> Hasil Tes Kandidat
+    </a>
+    {% endif %}
+    {% if session.role in ('hr_head','owner') %}
+    <a href="{{ url_for('hr_answer_key') }}" class="nav-item {% if request.endpoint=='hr_answer_key' %}active{% endif %}">
+      <span class="icon">🔑</span> Kunci Jawaban Tes
     </a>
     {% endif %}
     {% if session.role == 'owner' %}

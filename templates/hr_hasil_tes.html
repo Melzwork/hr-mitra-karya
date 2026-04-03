@@ -1,5 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Hasil Tes Kandidat{% endblock %}
+{% block title %}Hasil Tes Kandidat
+<!-- Delete Confirmation Modal -->
+<div id="delete-confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:2rem;width:360px;text-align:center;">
+    <div style="font-size:24px;margin-bottom:12px;">⚠️</div>
+    <div style="font-size:15px;font-weight:600;color:#1A1916;margin-bottom:8px;">Hapus Data Hasil Tes</div>
+    <div style="font-size:13px;color:#6B6A64;margin-bottom:6px;">Peserta: <strong id="delete-confirm-nama"></strong></div>
+    <div style="font-size:13px;color:#8B1F1F;background:#FAEAEA;border-radius:8px;padding:12px;margin-bottom:20px;line-height:1.6;text-align:left;">
+      Perhatian! Data ini akan dihapus permanen dan tidak dapat dikembalikan. Pastikan PDF sudah didownload dan diupload ke Drive sebelum menghapus.
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button onclick="doDelete()" style="padding:10px 24px;background:#C0392B;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;">Ya, Hapus</button>
+      <button onclick="closeDeleteConfirm()" style="padding:10px 24px;background:#F5F4F0;color:#1A1916;border:1px solid #E0DED6;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;">Batal</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
 {% block content %}
 <div class="page-header">
   <h1>Hasil Tes Kandidat</h1>
@@ -196,34 +212,18 @@
           </td>
           <td style="font-size:12px;color:#6B6A64">{{ r.tanggal_tes|datestr }}</td>
           <td>
-            <button onclick="printCard({{ r.id }})" class="btn-xs btn-ghost-xs">🖨 Print</button>
+            <a href="/hr/hasil-tes/{{ r.id }}/print" target="_blank" class="btn-xs btn-ghost-xs" style="text-decoration:none;display:inline-block">🖨 Print</a>
           </td>
           <td>
             <div style="display:flex;flex-direction:column;gap:4px;min-width:160px">
-              {% if session.role in ('hr_head','owner') %}
+              {% if session.role in ('hr_head','owner','hr_staff') %}
               {% if r.verdict == 'LULUS' %}
               <a href="/hr/hasil-tes/{{ r.id }}/terima" class="btn-xs btn-pass" style="text-align:center;text-decoration:none">✓ Terima sebagai Karyawan</a>
               {% endif %}
-              <!-- Checklist -->
-              <div style="font-size:11px;color:#6B6A64;margin-top:4px">
-                <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
-                  <input type="checkbox" {{ 'checked' if r.checklist_pdf }} onchange="updateChecklist({{ r.id }},'checklist_pdf',this.checked)"> PDF didownload
-                </label>
-                <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
-                  <input type="checkbox" {{ 'checked' if r.checklist_drive }} onchange="updateChecklist({{ r.id }},'checklist_drive',this.checked)"> Upload ke Drive
-                </label>
-                <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
-                  <input type="checkbox" {{ 'checked' if r.checklist_imported }} onchange="updateChecklist({{ r.id }},'checklist_imported',this.checked)"> Input sebagai karyawan
-                </label>
-              </div>
-              <div style="display:flex;gap:4px;margin-top:4px">
-                <form method="POST" action="/hr/hasil-tes/{{ r.id }}/arsip">
-                  <button type="submit" class="btn-xs btn-ghost-xs" title="Arsipkan">📁 Arsip</button>
-                </form>
-                <form method="POST" action="/hr/hasil-tes/{{ r.id }}/delete" id="del-form-{{ r.id }}"
-                      onsubmit="return confirmDelete({{ r.id }}, {{ 'true' if (r.checklist_pdf and r.checklist_drive and r.checklist_imported) else 'false' }})">
-                  <button type="submit" class="btn-xs btn-fail" title="Hapus">🗑 Hapus</button>
-                </form>
+              {% endif %}
+              {% if session.role in ('hr_head','owner') %}
+              <div style="margin-top:6px">
+                <button type="button" onclick="showDeleteConfirm({{ r.id }}, '{{ r.nama_lengkap }}')" class="btn-xs btn-fail">🗑 Hapus</button>
               </div>
               {% endif %}
             </div>
@@ -454,28 +454,43 @@ document.getElementById('qr-modal').addEventListener('click', function(e) {
   if (e.target === this) closeQR();
 });
 
-// Checklist update
-function updateChecklist(resultId, field, checked) {
-  fetch('/hr/hasil-tes/' + resultId + '/checklist', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: 'field=' + field + '&value=' + (checked ? 1 : 0)
-  }).then(r => r.json()).then(data => {
-    if (data.all_done) {
-      // Enable delete button visually
-      var delForm = document.getElementById('del-form-' + resultId);
-      if (delForm) delForm.dataset.allDone = 'true';
-    }
-  });
+// Delete confirmation dialog
+var _deleteId = null;
+
+function showDeleteConfirm(resultId, nama) {
+  _deleteId = resultId;
+  document.getElementById('delete-confirm-nama').textContent = nama;
+  document.getElementById('delete-confirm-modal').style.display = 'flex';
 }
 
-// Confirm delete with checklist validation
-function confirmDelete(resultId, allDone) {
-  if (!allDone) {
-    alert('Harap centang semua checklist terlebih dahulu sebelum menghapus:\n✓ PDF sudah didownload\n✓ Sudah diupload ke Drive\n✓ Sudah diinput sebagai karyawan');
-    return false;
-  }
-  return confirm('Yakin ingin menghapus hasil tes ini? Tindakan ini tidak bisa dibatalkan.');
+function closeDeleteConfirm() {
+  document.getElementById('delete-confirm-modal').style.display = 'none';
+  _deleteId = null;
+}
+
+function doDelete() {
+  if (!_deleteId) return;
+  var form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/hr/hasil-tes/' + _deleteId + '/delete';
+  document.body.appendChild(form);
+  form.submit();
 }
 </script>
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:2rem;width:360px;text-align:center;">
+    <div style="font-size:24px;margin-bottom:12px;">⚠️</div>
+    <div style="font-size:15px;font-weight:600;color:#1A1916;margin-bottom:8px;">Hapus Data Hasil Tes</div>
+    <div style="font-size:13px;color:#6B6A64;margin-bottom:6px;">Peserta: <strong id="delete-confirm-nama"></strong></div>
+    <div style="font-size:13px;color:#8B1F1F;background:#FAEAEA;border-radius:8px;padding:12px;margin-bottom:20px;line-height:1.6;text-align:left;">
+      Perhatian! Data ini akan dihapus permanen dan tidak dapat dikembalikan. Pastikan PDF sudah didownload dan diupload ke Drive sebelum menghapus.
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button onclick="doDelete()" style="padding:10px 24px;background:#C0392B;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;">Ya, Hapus</button>
+      <button onclick="closeDeleteConfirm()" style="padding:10px 24px;background:#F5F4F0;color:#1A1916;border:1px solid #E0DED6;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;">Batal</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
