@@ -1571,50 +1571,26 @@ def tes_masuk():
     session['tes_code'] = code
     session['tes_posisi'] = row['posisi']
     session['tes_tier'] = row['tier']
-    return redirect(url_for('tes_form_pelamar'))
+    return render_template('tes_identitas.html', posisi=row['posisi'])
 
 @app.route('/tes/identitas', methods=['POST'])
 def tes_identitas():
-    """Save candidate identity, prepare questions."""
+    """Save candidate name+NIK to session, then go to full data pelamar form."""
     if 'tes_code' not in session:
         return redirect(url_for('tes_landing'))
     nama = request.form.get('nama', '').strip()
     nik  = request.form.get('nik', '').strip()
+    if not nama:
+        return render_template('tes_identitas.html',
+                               posisi=session['tes_posisi'],
+                               error='Nama lengkap wajib diisi.')
     if len(nik) != 16 or not nik.isdigit():
         return render_template('tes_identitas.html',
                                posisi=session['tes_posisi'],
                                error='NIK KTP harus 16 digit angka.')
     session['tes_nama'] = nama
     session['tes_nik']  = nik
-
-    tier = session['tes_tier']
-    # Pick random questions
-    accuracy_pool = list(ACCURACY_PAIRS.get(tier, ACCURACY_PAIRS['operator']))
-    random.shuffle(accuracy_pool)
-    selected_acc = accuracy_pool[:10]
-
-    math_pool = MATH_QUESTIONS.get(tier, MATH_QUESTIONS['operator'])[:]
-    random.shuffle(math_pool)
-    selected_math = math_pool[:5]
-
-    logic_pool = LOGIC_QUESTIONS.get(tier, LOGIC_QUESTIONS['operator'])[:]
-    random.shuffle(logic_pool)
-    selected_logic = logic_pool[:10]
-
-    questions_data = {
-        'ketelitian': selected_acc,
-        'matematika': selected_math,
-        'logika': selected_logic,
-    }
-    session['tes_section'] = 'ketelitian'
-    session['tes_answers'] = {}
-
-    # Save questions to DB (avoids Flask session 4KB limit)
-    with get_db() as db:
-        db.execute("""UPDATE test_codes SET status='active',
-                     used_by_nama=?, used_by_nik=?, questions_json=? WHERE code=?""",
-                  (nama, nik, json.dumps(questions_data, default=list), session['tes_code']))
-    return redirect(url_for('tes_soal'))
+    return redirect(url_for('tes_form_pelamar'))
 
 @app.route('/tes/soal')
 def tes_soal():
@@ -1853,21 +1829,27 @@ def print_hasil_tes(result_id):
     if pelamar:
         rows = [
             kv_row('Nama Lengkap', pelamar.get('nama_lengkap') or result.get('nama_lengkap')),
-            kv_row('NIK KTP', pelamar.get('nik') or result.get('nik')),
-            kv_row('Tempat, Tanggal Lahir', f"{pelamar.get('tempat_lahir','—')}, {pelamar.get('tanggal_lahir','—')}"),
-            kv_row('Jenis Kelamin', pelamar.get('jenis_kelamin')),
-            kv_row('Agama', pelamar.get('agama')),
-            kv_row('Tinggi / Berat', f"{pelamar.get('tinggi','—')} cm / {pelamar.get('berat','—')} kg"),
-            kv_row('No. KTP', pelamar.get('no_ktp')),
-            kv_row('Tipe SIM', pelamar.get('no_sim')),
-            kv_row('Status Perkawinan', pelamar.get('status_perkawinan')),
-            kv_row('Alamat KTP', pelamar.get('alamat_ktp')),
-            kv_row('Alamat Tinggal', pelamar.get('alamat_tinggal')),
-            kv_row('No. HP', pelamar.get('no_hp')),
-            kv_row('Email', pelamar.get('email')),
-            kv_row('Rumah', pelamar.get('rumah_status')),
-            kv_row('Kendaraan', f"{pelamar.get('kendaraan','—')} {pelamar.get('kendaraan_merk','')} ({pelamar.get('kendaraan_milik','—')})"),
-            kv_row('Sosial Media', f"FB: {pelamar.get('sosmed_fb','—')} | IG: {pelamar.get('sosmed_ig','—')}"),
+            kv_row('No. KTP (NIK)', pelamar.get('no_ktp') or pelamar.get('nik') or result.get('nik')),
+            kv_row('Tempat, Tanggal Lahir', f"{pelamar.get('tempat_lahir') or '—'}, {pelamar.get('tanggal_lahir') or '—'}"),
+            kv_row('Jenis Kelamin', pelamar.get('jenis_kelamin') or '—'),
+            kv_row('Agama', pelamar.get('agama') or '—'),
+            kv_row('Tinggi / Berat', f"{pelamar.get('tinggi') or '—'} cm / {pelamar.get('berat') or '—'} kg"),
+            kv_row('Tipe SIM', pelamar.get('no_sim') or '—'),
+            kv_row('Status Perkawinan', pelamar.get('status_perkawinan') or '—'),
+            kv_row('Alamat KTP', pelamar.get('alamat_ktp') or '—'),
+            kv_row('Alamat Tinggal', pelamar.get('alamat_tinggal') or '—'),
+            kv_row('No. HP', pelamar.get('no_hp') or '—'),
+            kv_row('Email', pelamar.get('email') or '—'),
+            kv_row('Rumah', pelamar.get('rumah_status') or '—'),
+            kv_row('Kendaraan', (
+                    f"{pelamar.get('kendaraan','')} {pelamar.get('kendaraan_merk','')} (milik: {pelamar.get('kendaraan_milik','')})"
+                    .strip() if any([pelamar.get('kendaraan'), pelamar.get('kendaraan_merk')]) else '—'
+                )),
+            kv_row('Sosial Media', ' | '.join(filter(None, [
+                    f"FB: {pelamar.get('sosmed_fb')}" if pelamar.get('sosmed_fb') else '',
+                    f"IG: {pelamar.get('sosmed_ig')}" if pelamar.get('sosmed_ig') else '',
+                    f"TikTok: {pelamar.get('sosmed_tiktok')}" if pelamar.get('sosmed_tiktok') else '',
+                ])) or '—'),
         ]
         for pair in rows:
             t = Table([pair], colWidths=[4*cm, 13*cm])
@@ -2013,7 +1995,7 @@ def print_hasil_tes(result_id):
     story.append(Spacer(1, 0.15*cm))
     if pelamar:
         decl_nama = pelamar.get('deklarasi_nama') or result.get('nama_lengkap','')
-        decl_nik  = pelamar.get('nik','')
+        decl_nik  = pelamar.get('no_ktp') or pelamar.get('nik') or result.get('nik') or ''
         decl_tgl  = result.get('tanggal_tes','')
         sig_data = [
             [Paragraph('Nama', label_s), Paragraph(f': {decl_nama}', value_s)],
@@ -2033,7 +2015,7 @@ def print_hasil_tes(result_id):
 
     info_rows = [
         kv_row('Nama', result.get('nama_lengkap')),
-        kv_row('NIK', result.get('nik')),
+        kv_row('NIK', pelamar.get('no_ktp') if pelamar else result.get('nik')),
         kv_row('Posisi Dilamar', result.get('posisi')),
         kv_row('Level Tes', result.get('tier','').capitalize()),
         kv_row('Tanggal Tes', str(result.get('tanggal_tes',''))),
@@ -2115,7 +2097,7 @@ def print_hasil_tes(result_id):
 # ── Answer Key (HR Reference) ─────────────────────────────────────────────────
 @app.route('/hr/answer-key')
 @login_required
-@role_required('hr_head','owner')
+@role_required('owner')
 def hr_answer_key():
     """Printable answer key for all test sections and tiers."""
     sections = []
@@ -2291,6 +2273,7 @@ def tes_form_pelamar():
             'sosmed_fb': request.form.get('sosmed_fb','').strip(),
             'sosmed_ig': request.form.get('sosmed_ig','').strip(),
             'sosmed_twitter': request.form.get('sosmed_twitter','').strip(),
+            'sosmed_tiktok': request.form.get('sosmed_tiktok','').strip(),
             'keluarga': keluarga,
             'keluarga_menikah': keluarga_menikah,
             'pendidikan': pendidikan,
@@ -2307,6 +2290,8 @@ def tes_form_pelamar():
             return render_template('tes_form_pelamar.html',
                                  posisi=session.get('tes_posisi',''),
                                  religions=RELIGIONS,
+                                 prefill_nama=session.get('tes_nama',''),
+                                 prefill_nik=session.get('tes_nik',''),
                                  error='Harap isi nama lengkap pada bagian deklarasi.',
                                  form_data=form_data)
 
@@ -2319,6 +2304,8 @@ def tes_form_pelamar():
     return render_template('tes_form_pelamar.html',
                           posisi=session.get('tes_posisi',''),
                           religions=RELIGIONS,
+                          prefill_nama=session.get('tes_nama',''),
+                          prefill_nik=session.get('tes_nik',''),
                           error=None, form_data={})
 
 @app.route('/tes/confirm', methods=['GET','POST'])

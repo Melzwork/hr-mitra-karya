@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Pribadi Pelamar — PT Mitra Karya Texindo</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#F5F4F0;padding-bottom:4rem}
+.topbar{background:#1A1916;color:#F5F4F0;padding:12px 20px;position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between}
+.topbar-title{font-size:13px;font-weight:500}
+.topbar-sub{font-size:11px;color:#9B9A94}
+.logo{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#9B9A94}
+.container{max-width:760px;margin:0 auto;padding:2rem 1.25rem}
+.section{background:#fff;border:1px solid #E0DED6;border-radius:12px;margin-bottom:20px;overflow:hidden}
+.section-header{padding:14px 20px;background:#F5F4F0;border-bottom:1px solid #E0DED6;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#6B6A64}
+.section-body{padding:20px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.full{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:5px}
+label{font-size:12px;font-weight:500;color:#6B6A64;text-transform:uppercase;letter-spacing:.04em}
+label .req{color:#C0392B}
+input,select,textarea{padding:9px 12px;border:1px solid #E0DED6;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;color:#1A1916;background:#fff;width:100%;outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:#A0A09A}
+textarea{resize:vertical;min-height:60px}
+.table-section{width:100%;border-collapse:collapse;font-size:13px}
+.table-section th{text-align:left;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#9B9A94;border-bottom:1px solid #E0DED6}
+.table-section td{padding:6px 6px}
+.table-section td input,.table-section td select{padding:7px 10px;font-size:13px}
+.add-row{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:6px 14px;background:none;border:1px dashed #C8C6BC;border-radius:6px;font-size:12px;color:#6B6A64;cursor:pointer;font-family:'DM Sans',sans-serif}
+.add-row:hover{border-color:#A0A09A;color:#1A1916}
+.pertanyaan-item{padding:14px 0;border-bottom:1px solid #F0EFE9}
+.pertanyaan-item:last-child{border-bottom:none}
+.p-num{font-size:11px;font-weight:600;color:#9B9A94;margin-bottom:4px}
+.p-text{font-size:13px;color:#1A1916;margin-bottom:8px;line-height:1.5}
+.deklarasi{background:#FEF3E2;border:1px solid #F0C880;border-radius:10px;padding:20px}
+.deklarasi-text{font-size:13px;color:#1A1916;line-height:1.7;margin-bottom:16px}
+.checkbox-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px}
+.checkbox-row input[type=checkbox]{width:16px;height:16px;margin-top:2px;accent-color:#1A1916;flex-shrink:0}
+.checkbox-row label{font-size:13px;color:#1A1916;font-weight:400;text-transform:none;letter-spacing:0}
+.btn-submit{width:100%;padding:14px;background:#1A1916;color:#F5F4F0;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px;transition:opacity .15s}
+.btn-submit:hover{opacity:.85}
+.error-bar{background:#FAEAEA;border:1px solid #D4A0A0;color:#8B1F1F;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px}
+.posisi-badge{display:inline-block;padding:4px 12px;background:#E8EFF8;color:#1A3D6B;border-radius:6px;font-size:12px;font-weight:500;margin-bottom:1rem}
+@media(max-width:600px){.grid,.grid-3{grid-template-columns:1fr}.full{grid-column:1}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-title">Formulir Data Pribadi Pelamar</div>
+    <div class="topbar-sub">PT Mitra Karya Texindo — Harap isi semua data dengan jujur dan lengkap</div>
+  </div>
+  <div class="logo">MKT</div>
+</div>
+
+<div class="container">
+  {% if error %}<div class="error-bar">{{ error }}</div>{% endif %}
+  <div class="posisi-badge">Posisi: {{ posisi }}</div>
+
+  <form method="POST" action="/tes/form-pelamar">
+
+    <!-- DATA PRIBADI -->
+    <div class="section">
+      <div class="section-header">1. Data Pribadi</div>
+      <div class="section-body">
+        <div class="grid">
+          <div class="field full">
+            <label>Nama Lengkap (sesuai KTP) <span class="req">*</span></label>
+            <input type="text" name="nama_lengkap" required value="{{ prefill_nama or form_data.get('nama_lengkap','') }}" readonly style="background:#F5F4F0;color:#6B6A64;cursor:not-allowed;">
+          </div>
+          <div class="field">
+            <label>Alamat KTP <span class="req">*</span></label>
+            <textarea name="alamat_ktp" required placeholder="Alamat sesuai KTP">{{ form_data.get('alamat_ktp','') }}</textarea>
+          </div>
+          <div class="field">
+            <label>Alamat Tempat Tinggal <span class="req">*</span></label>
+            <textarea name="alamat_tinggal" required placeholder="Alamat tempat tinggal saat ini">{{ form_data.get('alamat_tinggal','') }}</textarea>
+          </div>
+          <div class="field">
+            <label>Nomor HP <span class="req">*</span></label>
+            <input type="text" name="no_hp" required placeholder="08xx-xxxx-xxxx" value="{{ form_data.get('no_hp','') }}">
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" name="email" placeholder="email@example.com" value="{{ form_data.get('email','') }}">
+          </div>
+        </div>
+        <div class="grid-3" style="margin-top:12px">
+          <div class="field">
+            <label>Jenis Kelamin <span class="req">*</span></label>
+            <select name="jenis_kelamin" required>
+              <option value="">— Pilih —</option>
+              <option value="Pria" {{ 'selected' if form_data.get('jenis_kelamin')=='Pria' }}>Pria</option>
+              <option value="Wanita" {{ 'selected' if form_data.get('jenis_kelamin')=='Wanita' }}>Wanita</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Tinggi (cm) <span class="req">*</span></label>
+            <input type="number" name="tinggi" required placeholder="165" value="{{ form_data.get('tinggi','') }}">
+          </div>
+          <div class="field">
+            <label>Berat (kg) <span class="req">*</span></label>
+            <input type="number" name="berat" required placeholder="60" value="{{ form_data.get('berat','') }}">
+          </div>
+          <div class="field">
+            <label>Agama <span class="req">*</span></label>
+            <select name="agama" required>
+              <option value="">— Pilih —</option>
+              {% for r in religions %}
+              <option value="{{ r }}" {{ 'selected' if form_data.get('agama')==r }}>{{ r }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label>No. KTP (NIK) <span class="req">*</span></label>
+            <input type="text" name="no_ktp" required maxlength="16" value="{{ prefill_nik or form_data.get('no_ktp','') }}" readonly style="background:#F5F4F0;color:#6B6A64;cursor:not-allowed;">
+          </div>
+          <div class="field">
+            <label>Tipe SIM</label>
+            <select name="no_sim">
+              <option value="">— Pilih —</option>
+              <option value="A" {{ 'selected' if form_data.get('no_sim')=='A' }}>A</option>
+              <option value="B" {{ 'selected' if form_data.get('no_sim')=='B' }}>B</option>
+              <option value="C" {{ 'selected' if form_data.get('no_sim')=='C' }}>C</option>
+              <option value="Tidak Ada" {{ 'selected' if form_data.get('no_sim')=='Tidak Ada' }}>Tidak Ada</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Tempat Lahir <span class="req">*</span></label>
+            <input type="text" name="tempat_lahir" required placeholder="Kota tempat lahir" value="{{ form_data.get('tempat_lahir','') }}">
+          </div>
+          <div class="field">
+            <label>Tanggal Lahir <span class="req">*</span></label>
+            <input type="date" name="tanggal_lahir" required value="{{ form_data.get('tanggal_lahir','') }}">
+          </div>
+          <div class="field">
+            <label>Status Perkawinan <span class="req">*</span></label>
+            <select name="status_perkawinan" required>
+              <option value="">— Pilih —</option>
+              <option value="Belum Kawin" {{ 'selected' if form_data.get('status_perkawinan')=='Belum Kawin' }}>Belum Kawin</option>
+              <option value="Kawin" {{ 'selected' if form_data.get('status_perkawinan')=='Kawin' }}>Kawin</option>
+              <option value="Janda/Duda" {{ 'selected' if form_data.get('status_perkawinan')=='Janda/Duda' }}>Janda/Duda</option>
+              <option value="Cerai" {{ 'selected' if form_data.get('status_perkawinan')=='Cerai' }}>Cerai</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-3" style="margin-top:12px">
+          <div class="field">
+            <label>Rumah/Tempat Tinggal <span class="req">*</span></label>
+            <select name="rumah_status" required>
+              <option value="">— Pilih —</option>
+              <option value="Milik Sendiri">Milik Sendiri</option>
+              <option value="Orang Tua">Orang Tua</option>
+              <option value="Sewa Kontrak">Sewa Kontrak</option>
+              <option value="Kost">Kost</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Kendaraan</label>
+            <input type="text" name="kendaraan" placeholder="" value="{{ form_data.get('kendaraan','') }}">
+          </div>
+          <div class="field">
+            <label>Jenis Merk & Tahun</label>
+            <input type="text" name="kendaraan_merk" placeholder="Honda Beat 2020" value="{{ form_data.get('kendaraan_merk','') }}">
+          </div>
+          <div class="field">
+            <label>Kendaraan Milik</label>
+            <select name="kendaraan_milik">
+              <option value="">— Pilih —</option>
+              <option value="Sendiri">Sendiri</option>
+              <option value="Orang Tua">Orang Tua</option>
+              <option value="Kantor">Kantor</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Facebook</label>
+            <input type="text" name="sosmed_fb" id="sosmed_fb" placeholder="Nama akun Facebook" value="{{ form_data.get('sosmed_fb','') }}">
+          </div>
+          <div class="field">
+            <label>Instagram</label>
+            <input type="text" name="sosmed_ig" id="sosmed_ig" placeholder="@username" value="{{ form_data.get('sosmed_ig','') }}">
+          </div>
+          <div class="field">
+            <label>TikTok</label>
+            <input type="text" name="sosmed_tiktok" id="sosmed_tiktok" placeholder="@username" value="{{ form_data.get('sosmed_tiktok','') }}">
+          </div>
+          <div class="field full" id="sosmed-note" style="display:none">
+            <div style="font-size:12px;color:#C0392B;background:#FAEAEA;padding:8px 12px;border-radius:6px;">
+              * Wajib isi minimal 1 akun sosial media (Facebook, Instagram, atau TikTok) untuk pelamar kelahiran setelah tahun 1993.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUSUNAN KELUARGA -->
+    <div class="section">
+      <div class="section-header">2. Susunan Keluarga (Ayah, Ibu, Kakak, Adik — <strong>termasuk diri sendiri</strong> — wajib isi minimal 3 baris)</div>
+      <div class="section-body">
+        <table class="table-section" id="tbl-kel">
+          <thead><tr><th>Hubungan</th><th>Nama</th><th>L/P</th><th>Usia</th><th>Pendidikan</th><th>Pekerjaan</th></tr></thead>
+          <tbody>
+            {% for i in range(10) %}
+            <tr>
+              <td>
+                <select name="kel_hubungan_{{ i }}" {{ 'required' if i < 3 else '' }}>
+                  <option value="">— Pilih —</option>
+                  <option>Diri Sendiri</option>
+                  <option>Ayah</option>
+                  <option>Ibu</option>
+                  <option>Suami</option>
+                  <option>Istri</option>
+                  <option>Kakak</option>
+                  <option>Adik</option>
+                  <option>Anak</option>
+                  <option>Lainnya</option>
+                </select>
+              </td>
+              <td><input type="text" name="kel_nama_{{ i }}" placeholder="Nama" {{ 'required' if i < 3 else '' }}></td>
+              <td><select name="kel_lp_{{ i }}" {{ 'required' if i < 3 else '' }}><option value="">-</option><option>L</option><option>P</option></select></td>
+              <td><input type="number" name="kel_usia_{{ i }}" placeholder="Usia" style="width:70px" {{ 'required' if i < 3 else '' }}></td>
+              <td><input type="text" name="kel_pendidikan_{{ i }}" placeholder="SMA/S1..."></td>
+              <td><input type="text" name="kel_pekerjaan_{{ i }}" placeholder="Pekerjaan"></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SUSUNAN KELUARGA MENIKAH -->
+    <div class="section">
+      <div class="section-header">3. Susunan Keluarga (Jika Sudah Menikah — termasuk diri sendiri)</div>
+      <div class="section-body">
+        <table class="table-section">
+          <thead><tr><th>Hubungan</th><th>Nama</th><th>L/P</th><th>Usia</th><th>Pendidikan</th><th>Pekerjaan</th></tr></thead>
+          <tbody>
+            {% for i in range(7) %}
+            <tr>
+              <td>
+                <select name="kelm_hubungan_{{ i }}">
+                  <option value="">— Pilih —</option>
+                  <option>Diri Sendiri</option>
+                  <option>Suami</option>
+                  <option>Istri</option>
+                  <option>Anak</option>
+                  <option>Lainnya</option>
+                </select>
+              </td>
+              <td><input type="text" name="kelm_nama_{{ i }}" placeholder="Nama"></td>
+              <td><select name="kelm_lp_{{ i }}"><option value="">-</option><option>L</option><option>P</option></select></td>
+              <td><input type="number" name="kelm_usia_{{ i }}" placeholder="Usia" style="width:70px"></td>
+              <td><input type="text" name="kelm_pendidikan_{{ i }}" placeholder="SMA/S1..."></td>
+              <td><input type="text" name="kelm_pekerjaan_{{ i }}" placeholder="Pekerjaan"></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RIWAYAT PENDIDIKAN -->
+    <div class="section">
+      <div class="section-header">4. Riwayat Pendidikan Formal</div>
+      <div class="section-body">
+        <table class="table-section">
+          <thead><tr><th>Tingkat</th><th>Nama Sekolah</th><th>Kota</th><th>Jurusan</th><th>Tahun</th><th>Lulus</th></tr></thead>
+          <tbody>
+            {% for i in range(5) %}
+            <tr>
+              <td><select name="pend_tingkat_{{ i }}" {{ 'required' if i == 0 else '' }}><option value="">-</option><option>SD</option><option>SMP</option><option>SMA/SMK</option><option>D3</option><option>S1</option><option>S2</option></select></td>
+              <td><input type="text" name="pend_nama_sekolah_{{ i }}" placeholder="Nama sekolah" {{ 'required' if i == 0 else '' }}></td>
+              <td><input type="text" name="pend_kota_{{ i }}" placeholder="Kota"></td>
+              <td><input type="text" name="pend_jurusan_{{ i }}" placeholder="Jurusan"></td>
+              <td><input type="text" name="pend_tahun_{{ i }}" placeholder="2020" style="width:80px" {{ 'required' if i == 0 else '' }}></td>
+              <td><select name="pend_lulus_{{ i }}" {{ 'required' if i == 0 else '' }}><option value="">-</option><option>Lulus</option><option>Tidak Lulus</option></select></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RIWAYAT PEKERJAAN -->
+    <div class="section">
+      <div class="section-header">5. Riwayat Pekerjaan (terbaru) — wajib isi minimal 1 baris</div>
+      <div class="section-body">
+        <table class="table-section">
+          <thead><tr><th>Nama Perusahaan</th><th>Jabatan</th><th>Lama Kerja</th><th>Gaji Terakhir</th><th>Alasan Berhenti</th></tr></thead>
+          <tbody>
+            {% for i in range(5) %}
+            <tr>
+              <td><input type="text" name="kerja_perusahaan_{{ i }}" placeholder="PT/CV..." {{ 'required' if i == 0 else '' }}></td>
+              <td><input type="text" name="kerja_jabatan_{{ i }}" placeholder="Jabatan" {{ 'required' if i == 0 else '' }}></td>
+              <td><input type="text" name="kerja_lama_{{ i }}" placeholder="2 tahun" {{ 'required' if i == 0 else '' }}></td>
+              <td><input type="text" name="kerja_gaji_{{ i }}" placeholder="Rp..."></td>
+              <td><input type="text" name="kerja_alasan_{{ i }}" placeholder="Alasan berhenti"></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PENGALAMAN ORGANISASI -->
+    <div class="section">
+      <div class="section-header">6. Pengalaman Organisasi</div>
+      <div class="section-body">
+        <table class="table-section">
+          <thead><tr><th>Nama Organisasi</th><th>Jabatan</th><th>Periode</th><th>Kota</th></tr></thead>
+          <tbody>
+            {% for i in range(5) %}
+            <tr>
+              <td><input type="text" name="org_nama_{{ i }}" placeholder="Nama organisasi" {{ 'required' if i == 0 else '' }}></td>
+              <td><input type="text" name="org_jabatan_{{ i }}" placeholder="Jabatan" {{ 'required' if i == 0 else '' }}></td>
+              <td><input type="text" name="org_periode_{{ i }}" placeholder="2018-2020"></td>
+              <td><input type="text" name="org_kota_{{ i }}" placeholder="Kota"></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- REFERENSI -->
+    <div class="section">
+      <div class="section-header">7. Referensi — Kepada siapa kami dapat menanyakan mengenai diri Anda</div>
+      <div class="section-body">
+        <table class="table-section">
+          <thead><tr><th>Nama</th><th>Nomor Telepon</th><th>Pekerjaan</th><th>Hubungan</th></tr></thead>
+          <tbody>
+            {% for i in range(2) %}
+            <tr>
+              <td><input type="text" name="ref_nama_{{ i }}" placeholder="Nama"></td>
+              <td><input type="text" name="ref_telepon_{{ i }}" placeholder="08xx..."></td>
+              <td><input type="text" name="ref_pekerjaan_{{ i }}" placeholder="Pekerjaan"></td>
+              <td><input type="text" name="ref_hubungan_{{ i }}" placeholder="Istri/Kakak..."></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- KONTAK DARURAT -->
+    <div class="section">
+      <div class="section-header">8. Orang yang dapat dihubungi segera dalam keadaan mendesak</div>
+      <div class="section-body">
+        <table class="table-section">
+          <thead><tr><th>Nama</th><th>Nomor Telepon</th><th>Pekerjaan</th><th>Hubungan</th></tr></thead>
+          <tbody>
+            {% for i in range(3) %}
+            <tr>
+              <td><input type="text" name="dar_nama_{{ i }}" placeholder="Nama" {{ 'required' if i==0 else '' }}></td>
+              <td><input type="text" name="dar_telepon_{{ i }}" placeholder="08xx..." {{ 'required' if i==0 else '' }}></td>
+              <td><input type="text" name="dar_pekerjaan_{{ i }}" placeholder="Pekerjaan"></td>
+              <td><input type="text" name="dar_hubungan_{{ i }}" placeholder="Orang Tua/Kakak..." {{ 'required' if i==0 else '' }}></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PERTANYAAN WAWANCARA -->
+    <div class="section">
+      <div class="section-header">9. Pertanyaan</div>
+      <div class="section-body">
+        {% set pertanyaan_list = [
+          (1, 'Apakah Anda pernah melamar di perusahaan ini sebelumnya?'),
+          (2, 'Selain di sini, di perusahaan mana lagi Anda melamar saat ini?'),
+          (3, 'Apakah Anda mempunyai kerja sampingan? Dimana dan sebagai apa?'),
+          (4, 'Apakah Anda keberatan bila kami minta referensi pada perusahaan tempat Anda bekerja?'),
+          (5, 'Apakah Anda mempunyai teman/saudara yang bekerja pada perusahaan ini? Sebutkan.'),
+          (6, 'Apakah Anda saat ini ada sakit sehingga memerlukan pemeriksaan rutin/khusus?'),
+          (7, 'Apakah Anda pernah menderita sakit keras/kronis/kecelakaan berat? Kapan dan macam apa? Jelaskan.'),
+          (8, 'Apakah ada keluarga/saudara yang sakit berat sehingga memerlukan pemantauan khusus dari Anda? (lingkari: Ya/Tidak — Siapa jika ada: Ayah/Ibu/Suami/Istri/Anak/Lainnya)'),
+          (9, 'Apakah Anda pernah menjalani pemeriksaan psikologis/psikiates? Dimana dan tujuan apa?'),
+          (10, 'Apakah Anda pernah berurusan dengan polisi karena tindakan pidana?'),
+          (11, 'Seandainya diterima, bersediakah Anda bertugas ke luar kota?'),
+          (12, 'Pekerjaan/jabatan apakah yang sesuai dengan cita-cita Anda?'),
+          (13, 'Berapa penghasilan Anda sebulan dan fasilitas apa saja yang diberikan saat ini?'),
+          (14, 'Seandainya diterima, berapa besar gaji dan fasilitas apa saja yang Anda minta?'),
+        ] %}
+        {% for num, text in pertanyaan_list %}
+        <div class="pertanyaan-item">
+          <div class="p-num">PERTANYAAN {{ num }}</div>
+          <div class="p-text">{{ text }}</div>
+          {% if num in [1,3,4,5,6,7,9,10,11] %}
+          <div style="display:flex;gap:20px;margin-top:4px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer">
+              <input type="radio" name="p{{ num }}" value="Ya" required> Ya
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer">
+              <input type="radio" name="p{{ num }}" value="Tidak"> Tidak
+            </label>
+          </div>
+          {% else %}
+          <textarea name="p{{ num }}" required rows="2" placeholder="Jawaban Anda..."></textarea>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- DEKLARASI -->
+    <div class="section">
+      <div class="section-header">10. Pernyataan / Deklarasi</div>
+      <div class="section-body">
+        <div class="deklarasi">
+          <div class="deklarasi-text">
+            Dengan mengisi formulir ini, saya menyatakan bahwa:
+            <br><br>
+            1. Seluruh data dan informasi yang saya isi dalam formulir ini adalah <strong>benar, lengkap, dan dapat dipertanggungjawabkan</strong>.
+            <br><br>
+            2. Saya memahami bahwa formulir ini akan menjadi <strong>bagian dari perjanjian kerja</strong> apabila saya diterima bekerja di PT Mitra Karya Texindo.
+            <br><br>
+            3. Apabila di kemudian hari terbukti terdapat data yang <strong>tidak benar atau menyesatkan</strong>, PT Mitra Karya Texindo berhak mengakhiri hubungan kerja tanpa kewajiban memberikan kompensasi apapun, dan saya wajib membayar ganti rugi sesuai <strong>Pasal 62 UU No. 13 Tahun 2003 tentang Ketenagakerjaan</strong>.
+            <br><br>
+            4. Pernyataan ini saya buat dengan <strong>kesadaran penuh, tanpa paksaan</strong> dari pihak manapun.
+          </div>
+          <div class="checkbox-row">
+            <input type="checkbox" id="setuju" required>
+            <label for="setuju">Saya menyatakan bahwa seluruh data yang saya isi adalah benar dan saya menyetujui pernyataan di atas.</label>
+          </div>
+          <div class="grid">
+            <div class="field">
+              <label>Nama Lengkap (sebagai tanda persetujuan digital) <span class="req">*</span></label>
+              <input type="text" name="deklarasi_nama" required placeholder="Ketik nama lengkap Anda" value="{{ form_data.get('deklarasi_nama','') }}">
+            </div>
+            <div class="field">
+              <label>No. KTP <span class="req">*</span></label>
+              <input type="text" name="deklarasi_nik" required maxlength="16" pattern="\d{16}" placeholder="16 digit NIK" value="{{ form_data.get('deklarasi_nik','') }}">
+            </div>
+          </div>
+        </div>
+        <button type="submit" class="btn-submit" style="margin-top:16px" onclick="return validateSosmed()">Simpan Data & Lanjutkan ke Tes →</button>
+      </div>
+    </div>
+
+  </form>
+
+<script>
+// Show sosmed note based on birth year
+document.addEventListener('DOMContentLoaded', function() {
+  var tglLahir = document.querySelector('input[name="tanggal_lahir"]');
+  if (tglLahir) {
+    tglLahir.addEventListener('change', checkSosmedRequired);
+    checkSosmedRequired();
+  }
+});
+
+function checkSosmedRequired() {
+  var tgl = document.querySelector('input[name="tanggal_lahir"]').value;
+  if (!tgl) return;
+  var year = parseInt(tgl.split('-')[0]);
+  var note = document.getElementById('sosmed-note');
+  if (note) note.style.display = year > 1993 ? 'block' : 'none';
+}
+
+function validateSosmed() {
+  var tgl = document.querySelector('input[name="tanggal_lahir"]').value;
+  if (!tgl) return true;
+  var year = parseInt(tgl.split('-')[0]);
+  if (year > 1993) {
+    var fb = document.getElementById('sosmed_fb').value.trim();
+    var ig = document.getElementById('sosmed_ig').value.trim();
+    var tt = document.getElementById('sosmed_tiktok').value.trim();
+    if (!fb && !ig && !tt) {
+      alert('Anda lahir setelah tahun 1993. Wajib mengisi minimal 1 akun sosial media (Facebook, Instagram, atau TikTok).');
+      return false;
+    }
+  }
+  return true;
+}
+</script>
+</div>
+</body>
+</html>
