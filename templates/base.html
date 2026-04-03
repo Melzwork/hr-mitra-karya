@@ -245,7 +245,7 @@ textarea { resize: vertical; min-height: 80px; }
       <span class="icon">📝</span> Hasil Tes Kandidat
     </a>
     {% endif %}
-    {% if session.role in ('hr_head','owner') %}
+    {% if session.role == 'owner' %}
     <a href="{{ url_for('hr_answer_key') }}" class="nav-item {% if request.endpoint=='hr_answer_key' %}active{% endif %}">
       <span class="icon">🔑</span> Kunci Jawaban Tes
     </a>

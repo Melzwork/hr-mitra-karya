@@ -2041,19 +2041,19 @@ def print_hasil_tes(result_id):
 
     score_data = [
         [
-            Paragraph('KETELITIAN', ps('sl', fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
+            Paragraph('KETELITIAN', ps('sl',  fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
             Paragraph('MATEMATIKA', ps('sl2', fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
-            Paragraph('LOGIKA', ps('sl3', fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
+            Paragraph('LOGIKA',     ps('sl3', fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
             Paragraph('EXCEL / KOMPUTER', ps('sl4', fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
         ],
         [
-            Paragraph(f'{sk}/10', ps('sv', fontSize=20, fontName='Helvetica-Bold', textColor=score_text_color(sk>=7), alignment=TA_CENTER)),
+            Paragraph(f'{sk}/10', ps('sv',  fontSize=20, fontName='Helvetica-Bold', textColor=score_text_color(sk>=7), alignment=TA_CENTER)),
             Paragraph(f'{sm}/5',  ps('sv2', fontSize=20, fontName='Helvetica-Bold', textColor=score_text_color(sm>=4), alignment=TA_CENTER)),
             Paragraph(f'{sl}/10', ps('sv3', fontSize=20, fontName='Helvetica-Bold', textColor=score_text_color(sl>=7), alignment=TA_CENTER)),
             Paragraph(se or '—',  ps('sv4', fontSize=14, fontName='Helvetica-Bold', textColor=score_text_color(se=='LULUS'), alignment=TA_CENTER)),
         ],
         [
-            Paragraph('LULUS' if sk>=7 else 'TIDAK LULUS', ps('ss', fontSize=9, textColor=score_text_color(sk>=7), alignment=TA_CENTER)),
+            Paragraph('LULUS' if sk>=7 else 'TIDAK LULUS', ps('ss',  fontSize=9, textColor=score_text_color(sk>=7), alignment=TA_CENTER)),
             Paragraph('LULUS' if sm>=4 else 'TIDAK LULUS', ps('ss2', fontSize=9, textColor=score_text_color(sm>=4), alignment=TA_CENTER)),
             Paragraph('LULUS' if sl>=7 else 'TIDAK LULUS', ps('ss3', fontSize=9, textColor=score_text_color(sl>=7), alignment=TA_CENTER)),
             Paragraph(se or 'BELUM DINILAI', ps('ss4', fontSize=9, textColor=score_text_color(se=='LULUS'), alignment=TA_CENTER)),

@@ -70,7 +70,7 @@ textarea{resize:vertical;min-height:60px}
         <div class="grid">
           <div class="field full">
             <label>Nama Lengkap (sesuai KTP) <span class="req">*</span></label>
-            <input type="text" name="nama_lengkap" required placeholder="Nama lengkap sesuai KTP" value="{{ form_data.get('nama_lengkap','') }}">
+            <input type="text" name="nama_lengkap" required value="{{ prefill_nama or form_data.get('nama_lengkap','') }}" readonly style="background:#F5F4F0;color:#6B6A64;cursor:not-allowed;">
           </div>
           <div class="field">
             <label>Alamat KTP <span class="req">*</span></label>
@@ -116,8 +116,8 @@ textarea{resize:vertical;min-height:60px}
             </select>
           </div>
           <div class="field">
-            <label>No. KTP <span class="req">*</span></label>
-            <input type="text" name="no_ktp" required maxlength="16" placeholder="16 digit NIK" value="{{ form_data.get('no_ktp','') }}">
+            <label>No. KTP (NIK) <span class="req">*</span></label>
+            <input type="text" name="no_ktp" required maxlength="16" value="{{ prefill_nik or form_data.get('no_ktp','') }}" readonly style="background:#F5F4F0;color:#6B6A64;cursor:not-allowed;">
           </div>
           <div class="field">
             <label>Tipe SIM</label>
@@ -161,7 +161,13 @@ textarea{resize:vertical;min-height:60px}
           </div>
           <div class="field">
             <label>Kendaraan</label>
-            <input type="text" name="kendaraan" placeholder="" value="{{ form_data.get('kendaraan','') }}">
+            <select name="kendaraan">
+              <option value="">— Pilih —</option>
+              <option value="Motor" {{ 'selected' if form_data.get('kendaraan')=='Motor' }}>Motor</option>
+              <option value="Mobil" {{ 'selected' if form_data.get('kendaraan')=='Mobil' }}>Mobil</option>
+              <option value="Motor & Mobil" {{ 'selected' if form_data.get('kendaraan')=='Motor & Mobil' }}>Motor & Mobil</option>
+              <option value="Tidak Ada" {{ 'selected' if form_data.get('kendaraan')=='Tidak Ada' }}>Tidak Ada</option>
+            </select>
           </div>
           <div class="field">
             <label>Jenis Merk & Tahun</label>
@@ -178,11 +184,20 @@ textarea{resize:vertical;min-height:60px}
           </div>
           <div class="field">
             <label>Facebook</label>
-            <input type="text" name="sosmed_fb" placeholder="Nama akun Facebook" value="{{ form_data.get('sosmed_fb','') }}">
+            <input type="text" name="sosmed_fb" id="sosmed_fb" placeholder="Nama akun Facebook" value="{{ form_data.get('sosmed_fb','') }}">
           </div>
           <div class="field">
             <label>Instagram</label>
-            <input type="text" name="sosmed_ig" placeholder="@username" value="{{ form_data.get('sosmed_ig','') }}">
+            <input type="text" name="sosmed_ig" id="sosmed_ig" placeholder="@username" value="{{ form_data.get('sosmed_ig','') }}">
+          </div>
+          <div class="field">
+            <label>TikTok</label>
+            <input type="text" name="sosmed_tiktok" id="sosmed_tiktok" placeholder="@username" value="{{ form_data.get('sosmed_tiktok','') }}">
+          </div>
+          <div class="field full" id="sosmed-note" style="display:none">
+            <div style="font-size:12px;color:#C0392B;background:#FAEAEA;padding:8px 12px;border-radius:6px;">
+              * Wajib isi minimal 1 akun sosial media (Facebook, Instagram, atau TikTok) untuk pelamar kelahiran setelah tahun 1993.
+            </div>
           </div>
         </div>
       </div>
@@ -425,15 +440,50 @@ textarea{resize:vertical;min-height:60px}
             </div>
             <div class="field">
               <label>No. KTP <span class="req">*</span></label>
-              <input type="text" name="deklarasi_nik" required maxlength="16" pattern="\d{16}" placeholder="16 digit NIK" value="{{ form_data.get('deklarasi_nik','') }}">
+              <input type="text" name="deklarasi_nik" required maxlength="16" value="{{ prefill_nik or form_data.get('deklarasi_nik','') }}" readonly style="background:#F5F4F0;color:#6B6A64;cursor:not-allowed;">
             </div>
           </div>
         </div>
-        <button type="submit" class="btn-submit" style="margin-top:16px">Simpan Data & Lanjutkan ke Tes →</button>
+        <button type="submit" class="btn-submit" style="margin-top:16px" onclick="return validateSosmed()">Simpan Data & Lanjutkan ke Tes →</button>
       </div>
     </div>
 
   </form>
+
+<script>
+// Show sosmed note based on birth year
+document.addEventListener('DOMContentLoaded', function() {
+  var tglLahir = document.querySelector('input[name="tanggal_lahir"]');
+  if (tglLahir) {
+    tglLahir.addEventListener('change', checkSosmedRequired);
+    checkSosmedRequired();
+  }
+});
+
+function checkSosmedRequired() {
+  var tgl = document.querySelector('input[name="tanggal_lahir"]').value;
+  if (!tgl) return;
+  var year = parseInt(tgl.split('-')[0]);
+  var note = document.getElementById('sosmed-note');
+  if (note) note.style.display = year > 1993 ? 'block' : 'none';
+}
+
+function validateSosmed() {
+  var tgl = document.querySelector('input[name="tanggal_lahir"]').value;
+  if (!tgl) return true;
+  var year = parseInt(tgl.split('-')[0]);
+  if (year > 1993) {
+    var fb = document.getElementById('sosmed_fb').value.trim();
+    var ig = document.getElementById('sosmed_ig').value.trim();
+    var tt = document.getElementById('sosmed_tiktok').value.trim();
+    if (!fb && !ig && !tt) {
+      alert('Anda lahir setelah tahun 1993. Wajib mengisi minimal 1 akun sosial media (Facebook, Instagram, atau TikTok).');
+      return false;
+    }
+  }
+  return true;
+}
+</script>
 </div>
 </body>
 </html>
