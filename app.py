@@ -1526,19 +1526,10 @@ def gen_test_code():
             return code
 
 def compute_verdict(tier, skor_k, skor_m, skor_l, skor_excel=None):
-    pass_k = skor_k >= 7   # 7/10
-    pass_m = skor_m >= 4   # 4/5 (actually 3.5 → we use 4 = 80% rounding to fair)
-    # We actually want 70% of 5 = 3.5 → round up to 4 but let's do >= 3 (60%)
-    # Per discussion: 70% minimum, 70% of 5 = 3.5 so we need 4 correct (80%) or 3 (60%)
-    # Let's go 70% strictly: 3.5 → candidate needs 4 out of 5 = 80%
-    # Better: accept 3/5 as 60% fail, 4/5 = 80% pass. We'll use >= 4.
+    """All tiers: pass all 3 sections to LULUS. Excel no longer required."""
+    pass_k = skor_k >= 7
     pass_m = skor_m >= 4
-    pass_l = skor_l >= 7   # 7/10
-    if tier == 'admin' and skor_excel is None:
-        return 'PENDING'
-    if tier == 'admin':
-        pass_excel = skor_excel == 'LULUS'
-        return 'LULUS' if (pass_k and pass_m and pass_l and pass_excel) else 'TIDAK LULUS'
+    pass_l = skor_l >= 7
     return 'LULUS' if (pass_k and pass_m and pass_l) else 'TIDAK LULUS'
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
@@ -1610,7 +1601,8 @@ def tes_soal():
     if section == 'komputer':
         return render_template('tes_komputer.html',
                                nama=session.get('tes_nama',''),
-                               posisi=session.get('tes_posisi',''))
+                               posisi=session.get('tes_posisi',''),
+                               tier=session.get('tes_tier',''))
 
     section_questions = questions.get(section, [])
     timers = {'ketelitian': 180, 'matematika': 300, 'logika': 600}
@@ -1675,8 +1667,6 @@ def tes_submit():
     idx   = order.index(section) if section in order else -1
     if idx < len(order) - 1:
         session['tes_section'] = order[idx + 1]
-    elif tier == 'admin':
-        session['tes_section'] = 'komputer'
     else:
         session['tes_section'] = 'done'
 
@@ -2248,7 +2238,18 @@ def tes_form_pelamar():
 
         pertanyaan = {}
         for i in range(1, 15):
-            pertanyaan[str(i)] = request.form.get(f'p{i}','').strip()
+            val = request.form.get(f'p{i}','').strip()
+            # Q5 and Q7: if Ya, append detail text
+            if i in [5, 7] and val == 'Ya':
+                detail = request.form.get(f'p{i}_detail','').strip()
+                if detail:
+                    val = f'Ya — {detail}'
+            # Q8: if Ya, collect checkboxes
+            if i == 8 and val == 'Ya':
+                anggota = request.form.getlist('p8_anggota')
+                if anggota:
+                    val = f'Ya — {", ".join(anggota)}'
+            pertanyaan[str(i)] = val
 
         form_data = {
             'nama_lengkap': request.form.get('nama_lengkap','').strip(),

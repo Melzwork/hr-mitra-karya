@@ -35,6 +35,8 @@ h1{font-size:20px;font-weight:500;color:#1A1916;margin-bottom:1rem}
 <body>
 <div class="card">
   <p class="logo">PT Mitra Karya Texindo</p>
+
+  {% if tier == 'admin' %}
   <div style="text-align:center">
     <span class="badge">Bagian 4 — Tes Komputer (Excel)</span>
   </div>
@@ -49,34 +51,34 @@ h1{font-size:20px;font-weight:500;color:#1A1916;margin-bottom:1rem}
     <li><span class="task-num">4</span>Temukan dan perbaiki kesalahan data yang ada</li>
     <li><span class="task-num">5</span>Buat tabel ringkasan sederhana dari data yang tersedia</li>
   </ul>
-  <div class="timer-large">
-    <div class="timer-val" id="timerDisplay">15:00</div>
-    <div class="timer-label">Waktu tes komputer</div>
-  </div>
   <div class="divider"></div>
   <div class="hr-note">
-    <strong>Untuk staf HR:</strong> Klik tombol di bawah setelah kandidat selesai atau waktu habis untuk menyimpan hasil dan melanjutkan.
+    <strong>Untuk staf HR:</strong> Klik tombol di bawah setelah kandidat selesai untuk menyimpan hasil dan melanjutkan.
   </div>
   <form method="POST" action="/tes/komputer/selesai">
-    <button type="submit" class="btn" id="doneBtn">Kandidat Selesai — Simpan & Lanjut →</button>
+    <button type="submit" class="btn">Kandidat Selesai — Simpan & Lanjut →</button>
   </form>
+
+  {% else %}
+  <div style="text-align:center;padding:1rem 0">
+    <div style="font-size:48px;margin-bottom:1rem">✅</div>
+    <h1 style="font-size:22px;margin-bottom:0.5rem">Tes Online Selesai</h1>
+    <p style="font-size:14px;color:#6B6A64;margin-bottom:1.5rem">Terima kasih, {{ nama }}. Tes tertulis Anda telah selesai.</p>
+  </div>
+  <div class="hr-note" style="background:#E8F5EE;border:1px solid #A8D5B8;color:#1A5E3A;text-align:center;padding:16px">
+    <strong>Silakan temui staf HR kami</strong><br>
+    untuk melanjutkan ke tahap selanjutnya.
+  </div>
+  <div class="divider"></div>
+  <form method="POST" action="/tes/komputer/selesai">
+    <button type="submit" class="btn">Selesai →</button>
+  </form>
+  {% endif %}
 </div>
 <script>
-var timeLeft = 900;
-var timerEl = document.getElementById('timerDisplay');
-var interval = setInterval(function() {
-  timeLeft--;
-  var m = Math.floor(timeLeft / 60);
-  var s = timeLeft % 60;
-  timerEl.textContent = (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
-  if (timeLeft <= 60) timerEl.className = 'timer-val danger';
-  else if (timeLeft <= 180) timerEl.className = 'timer-val warning';
-  if (timeLeft <= 0) {
-    clearInterval(interval);
-    timerEl.textContent = '00:00';
-    timerEl.className = 'timer-val danger';
-  }
-}, 1000);
+{% if tier == 'admin' %}
+// No timer needed
+{% endif %}
 </script>
 </body>
 </html>

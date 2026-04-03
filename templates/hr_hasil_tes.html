@@ -140,7 +140,6 @@
           <th>Ketelitian<br><small style="font-weight:400;color:#9B9A94">/10 (min 7)</small></th>
           <th>Matematika<br><small style="font-weight:400;color:#9B9A94">/5 (min 4)</small></th>
           <th>Logika<br><small style="font-weight:400;color:#9B9A94">/10 (min 7)</small></th>
-          <th>Excel</th>
           <th>Hasil</th>
           <th>Tanggal</th>
           <th>Print</th>
@@ -162,20 +161,7 @@
           <td class="{{ 'score-pass' if r.skor_logika >= 7 else 'score-fail' }}">
             {{ r.skor_logika }}/10
           </td>
-          <td>
-            {% if r.tier == 'admin' %}
-              {% if r.skor_excel %}
-                <span class="{{ 'badge-pass' if r.skor_excel == 'LULUS' else 'badge-fail' }}">{{ r.skor_excel }}</span>
-              {% else %}
-                <form method="POST" action="/hr/excel-verdict/{{ r.id }}" style="display:flex;gap:6px">
-                  <button type="submit" name="excel_verdict" value="LULUS" class="btn-xs btn-pass">LULUS</button>
-                  <button type="submit" name="excel_verdict" value="TIDAK LULUS" class="btn-xs btn-fail">TIDAK LULUS</button>
-                </form>
-              {% endif %}
-            {% else %}
-              <span style="color:#9B9A94;font-size:12px">—</span>
-            {% endif %}
-          </td>
+
           <td>
             <span class="verdict-badge verdict-{{ r.verdict|lower|replace(' ','_') }}">{{ r.verdict }}</span>
           </td>
