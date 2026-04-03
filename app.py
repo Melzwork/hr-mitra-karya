@@ -383,7 +383,11 @@ def gen_emp_id():
         row = db.fetchone("SELECT last_number FROM id_counter WHERE prefix='NIP'")
         n = (row['last_number']+1) if row else 26001
         if n < 26001: n = 26001
-        db.execute("INSERT OR REPLACE INTO id_counter (prefix,last_number) VALUES ('NIP',?)",(n,))
+        if PG:
+            db.execute("""INSERT INTO id_counter (prefix,last_number) VALUES ('NIP',?)
+                         ON CONFLICT (prefix) DO UPDATE SET last_number=EXCLUDED.last_number""", (n,))
+        else:
+            db.execute("INSERT OR REPLACE INTO id_counter (prefix,last_number) VALUES ('NIP',?)",(n,))
         db.commit()
     return str(n)
 
@@ -392,7 +396,11 @@ def gen_doc_ref(emp_id, code):
     with get_db() as db:
         row = db.fetchone("SELECT last_number FROM id_counter WHERE prefix=?", (key,))
         n = (row['last_number']+1) if row else 1
-        db.execute("INSERT OR REPLACE INTO id_counter (prefix,last_number) VALUES (?,?)",(key,n))
+        if PG:
+            db.execute("""INSERT INTO id_counter (prefix,last_number) VALUES (?,?)
+                         ON CONFLICT (prefix) DO UPDATE SET last_number=EXCLUDED.last_number""", (key,n))
+        else:
+            db.execute("INSERT OR REPLACE INTO id_counter (prefix,last_number) VALUES (?,?)",(key,n))
         db.commit()
     return f"{emp_id}-{code}-{n:03d}"
 
