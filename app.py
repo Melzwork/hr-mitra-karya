@@ -1613,7 +1613,7 @@ def tes_soal():
                                tier=session.get('tes_tier',''))
 
     section_questions = questions.get(section, [])
-    timers = {'ketelitian': 180, 'matematika': 300, 'logika': 600}
+    timers = {'ketelitian': 180, 'matematika': 480, 'logika': 300}
     timer  = timers.get(section, 300)
 
     section_labels = {
@@ -1747,6 +1747,17 @@ def tes_selesai():
             except Exception as e:
                 print(f"Warning: could not save data_pelamar: {e}")
 
+    # Log test completion
+    try:
+        with get_db() as db:
+            db.execute(
+                "INSERT INTO audit_log (action, table_name, record_id, details, performed_by) VALUES (?,?,?,?,?)",
+                ('TES_SELESAI', 'test_results', result_id,
+                 f"Peserta: {session.get('tes_nama','?')} | Posisi: {session.get('tes_posisi','?')} | Verdict: {verdict}",
+                 session.get('tes_nama','sistem')))
+    except Exception as e:
+        print(f"Audit log error: {e}")
+
     # Clear test session
     for k in ['tes_code','tes_posisi','tes_tier','tes_nama','tes_nik',
               'tes_questions','tes_section','tes_answers','tes_form_data']:
@@ -1864,16 +1875,19 @@ def print_hasil_tes(result_id):
                 story.append(Spacer(1, 0.2*cm))
                 story.append(section_header('2. SUSUNAN KELUARGA'))
                 story.append(Spacer(1, 0.1*cm))
-                rows = [['Hubungan','Nama','L/P','Usia','Pendidikan','Pekerjaan']]
+                cs = ParagraphStyle('tc', fontSize=7.5, leading=10, wordWrap='LTR')
+                ch = ParagraphStyle('th', fontSize=7.5, leading=10, wordWrap='LTR', fontName='Helvetica-Bold')
+                def C(v): return Paragraph(str(v) if v else '', cs)
+                def H(v): return Paragraph(str(v), ch)
+                rows = [[H('Hubungan'),H('Nama'),H('L/P'),H('Usia'),H('Pendidikan'),H('Pekerjaan')]]
                 for k in keluarga:
-                    rows.append([k.get('hubungan',''), k.get('nama',''), k.get('lp',''), str(k.get('usia','')), k.get('pendidikan',''), k.get('pekerjaan','')])
+                    rows.append([C(k.get('hubungan','')), C(k.get('nama','')), C(k.get('lp','')), C(str(k.get('usia',''))), C(k.get('pendidikan','')), C(k.get('pekerjaan',''))])
                 t = Table(rows, colWidths=[2.5*cm,3.5*cm,1*cm,1.2*cm,2.5*cm,6.3*cm])
                 t.setStyle(TableStyle([
                     ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#F5F4F0')),
-                    ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-                    ('FONTSIZE',(0,0),(-1,-1),8),
                     ('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#E0DED6')),
                     ('PADDING',(0,0),(-1,-1),4),
+                    ('VALIGN',(0,0),(-1,-1),'TOP'),
                     ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#FAFAF8')]),
                 ]))
                 story.append(t)
@@ -1887,16 +1901,16 @@ def print_hasil_tes(result_id):
                 story.append(Spacer(1, 0.2*cm))
                 story.append(section_header('3. RIWAYAT PENDIDIKAN'))
                 story.append(Spacer(1, 0.1*cm))
-                rows = [['Tingkat','Nama Sekolah','Kota','Jurusan','Tahun','Lulus']]
+                rows = [[H('Tingkat'),H('Nama Sekolah'),H('Kota'),H('Jurusan'),H('Tahun'),H('Lulus')]]
                 for p in pendidikan:
-                    rows.append([p.get('tingkat',''), p.get('nama_sekolah',''), p.get('kota',''), p.get('jurusan',''), p.get('tahun',''), p.get('lulus','')])
-                t = Table(rows, colWidths=[1.8*cm,4*cm,2.5*cm,3*cm,1.5*cm,4.2*cm])
+                    rows.append([C(p.get('tingkat','')), C(p.get('nama_sekolah','')), C(p.get('kota','')), C(p.get('jurusan','')), C(p.get('tahun','')), C(p.get('lulus',''))])
+                t = Table(rows, colWidths=[1.8*cm,4.5*cm,2.5*cm,3.5*cm,1.5*cm,3.2*cm])
                 t.setStyle(TableStyle([
                     ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#F5F4F0')),
-                    ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-                    ('FONTSIZE',(0,0),(-1,-1),8),
                     ('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#E0DED6')),
                     ('PADDING',(0,0),(-1,-1),4),
+                    ('VALIGN',(0,0),(-1,-1),'TOP'),
+                    ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#FAFAF8')]),
                 ]))
                 story.append(t)
         except: pass
@@ -1909,16 +1923,16 @@ def print_hasil_tes(result_id):
                 story.append(Spacer(1, 0.2*cm))
                 story.append(section_header('4. RIWAYAT PEKERJAAN'))
                 story.append(Spacer(1, 0.1*cm))
-                rows = [['Perusahaan','Jabatan','Lama Kerja','Gaji Terakhir','Alasan Berhenti']]
+                rows = [[H('Perusahaan'),H('Jabatan'),H('Lama Kerja'),H('Gaji Terakhir'),H('Alasan Berhenti')]]
                 for p in pekerjaan:
-                    rows.append([p.get('perusahaan',''), p.get('jabatan',''), p.get('lama',''), p.get('gaji',''), p.get('alasan','')])
+                    rows.append([C(p.get('perusahaan','')), C(p.get('jabatan','')), C(p.get('lama','')), C(p.get('gaji','')), C(p.get('alasan',''))])
                 t = Table(rows, colWidths=[3.5*cm,2.5*cm,2*cm,2.5*cm,6.5*cm])
                 t.setStyle(TableStyle([
                     ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#F5F4F0')),
-                    ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-                    ('FONTSIZE',(0,0),(-1,-1),8),
                     ('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#E0DED6')),
                     ('PADDING',(0,0),(-1,-1),4),
+                    ('VALIGN',(0,0),(-1,-1),'TOP'),
+                    ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#FAFAF8')]),
                 ]))
                 story.append(t)
         except: pass
@@ -1959,7 +1973,7 @@ def print_hasil_tes(result_id):
                     (3,'Apakah Anda mempunyai kerja sampingan?'),
                     (4,'Apakah Anda keberatan bila kami minta referensi pada perusahaan tempat Anda bekerja?'),
                     (5,'Apakah Anda mempunyai teman/saudara yang bekerja pada perusahaan ini?'),
-                    (6,'Apakah Anda saat ini ada sakit sehingga memerlukan pemeriksaan rutin/khusus?'),
+                    (6,'Apakah Anda saat ini ada penyakit sehingga memerlukan pemeriksaan rutin/khusus?'),
                     (7,'Apakah Anda pernah menderita sakit keras/kronis/kecelakaan berat?'),
                     (8,'Apakah ada keluarga/saudara yang sakit berat memerlukan pemantauan khusus dari Anda?'),
                     (9,'Apakah Anda pernah menjalani pemeriksaan psikologis/psikiates?'),
@@ -1984,7 +1998,7 @@ def print_hasil_tes(result_id):
         "Dengan mengisi formulir ini, saya menyatakan bahwa: (1) Seluruh data dan informasi yang saya isi "
         "adalah benar, lengkap, dan dapat dipertanggungjawabkan. (2) Formulir ini akan menjadi bagian dari "
         "perjanjian kerja apabila saya diterima bekerja di PT Mitra Karya Texindo. (3) Apabila di kemudian "
-        "hari terbukti terdapat data yang tidak benar atau menyesatkan, PT Mitra Karya Texindo berhak "
+        "hari terbukti terdapat data yang tidak benar atau menyesatkan, Business Management System berhak "
         "mengakhiri hubungan kerja tanpa kewajiban memberikan kompensasi apapun, dan saya wajib membayar "
         "ganti rugi sesuai Pasal 62 UU No. 13 Tahun 2003 tentang Ketenagakerjaan. "
         "(4) Pernyataan ini saya buat dengan kesadaran penuh, tanpa paksaan dari pihak manapun."
@@ -2079,7 +2093,7 @@ def print_hasil_tes(result_id):
     vt.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),v_bg),('PADDING',(0,0),(-1,-1),14),('BOX',(0,0),(-1,-1),1.5,v_color)]))
     story.append(vt)
     story.append(Spacer(1, 0.4*cm))
-    story.append(Paragraph('Dokumen ini diterbitkan oleh Sistem HR PT Mitra Karya Texindo. Bersifat rahasia dan hanya untuk keperluan internal.', ps('foot', fontSize=7, textColor=colors.HexColor('#9B9A94'), alignment=TA_CENTER)))
+    story.append(Paragraph('Dokumen ini diterbitkan oleh Sistem HR Business Management System. Bersifat rahasia dan hanya untuk keperluan internal.', ps('foot', fontSize=7, textColor=colors.HexColor('#9B9A94'), alignment=TA_CENTER)))
 
     doc.build(story)
     buf.seek(0)
@@ -2196,6 +2210,7 @@ def hr_buat_kode():
                          VALUES (?,?,?,?,?,?)""",
                       (code, posisi, tier, 'unused', session['user'],
                        expires.strftime('%Y-%m-%d %H:%M:%S')))
+    log_audit('BUAT_KODE_TES', 'test_codes', None, f"Kode: {code} | Posisi: {posisi} | Tier: {tier}")
     flash(f'Kode berhasil dibuat: {code} — berlaku 1 jam untuk posisi {posisi}.', 'success')
     return redirect(url_for('hr_hasil_tes'))
 
@@ -2410,6 +2425,8 @@ def update_checklist(result_id):
         db.execute(f"UPDATE test_results SET {field}=? WHERE id=?", (value, result_id))
         row = db.fetchone("SELECT checklist_pdf,checklist_drive,checklist_imported FROM test_results WHERE id=?", (result_id,))
     all_done = row and all([row['checklist_pdf'], row['checklist_drive'], row['checklist_imported']])
+    label_map = {'checklist_pdf': 'PDF didownload', 'checklist_drive': 'Upload ke Drive', 'checklist_imported': 'Input sebagai karyawan'}
+    log_audit('UPDATE_CHECKLIST', 'test_results', result_id, f"{label_map.get(field, field)}: {'Ya' if value else 'Tidak'}")
     return jsonify({'ok': True, 'all_done': all_done})
 
 # ── Terima sebagai Karyawan ────────────────────────────────────────────────────
@@ -2425,6 +2442,7 @@ def terima_karyawan(result_id):
         flash('Data tidak ditemukan.', 'error')
         return redirect(url_for('hr_hasil_tes'))
     # Store in session for add_staff to pick up
+    log_audit('TERIMA_KANDIDAT', 'test_results', result_id, f"Kandidat: {result['nama_lengkap']} | Posisi: {result['posisi']}")
     session['import_from_tes'] = result_id
     flash(f'Data {result["nama_lengkap"]} siap diimport. Harap review semua data sebelum menyimpan.', 'warning')
     return redirect(url_for('add_staff'))
@@ -2534,7 +2552,7 @@ with app.app_context():
 if __name__ == '__main__':
     os.makedirs(os.path.join(os.path.dirname(__file__),'instance'),exist_ok=True)
     print("\n"+"="*52)
-    print("  HR Master Data — Mitra Karya Texindo")
+    print("  HR Master Data — Business Management System")
     print("="*52)
     print("  Buka browser: http://localhost:5001")
     print("  Owner       : owner / owner123")

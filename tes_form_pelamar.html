@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Data Pribadi Pelamar — PT Mitra Karya Texindo</title>
+<title>Data Pribadi Pelamar — Business Management System</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -44,7 +44,18 @@ textarea{resize:vertical;min-height:60px}
 .btn-submit:hover{opacity:.85}
 .error-bar{background:#FAEAEA;border:1px solid #D4A0A0;color:#8B1F1F;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px}
 .posisi-badge{display:inline-block;padding:4px 12px;background:#E8EFF8;color:#1A3D6B;border-radius:6px;font-size:12px;font-weight:500;margin-bottom:1rem}
-@media(max-width:600px){.grid,.grid-3{grid-template-columns:1fr}.full{grid-column:1}}
+@media(max-width:700px){
+  .grid,.grid-3{grid-template-columns:1fr}
+  .full{grid-column:1}
+  .table-section{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .table-section thead{display:none}
+  .table-section tbody tr{display:block;border:1px solid #E0DED6;border-radius:8px;margin-bottom:10px;padding:8px}
+  .table-section td{display:block;padding:4px 6px;font-size:13px}
+  .table-section td input,.table-section td select{width:100%;font-size:14px;padding:8px 10px}
+  .table-section td::before{content:attr(data-label);font-size:11px;font-weight:600;text-transform:uppercase;color:#9B9A94;display:block;margin-bottom:3px}
+  .btn-submit{font-size:16px;padding:16px}
+  .container{padding:1rem 0.75rem}
+}
 </style>
 </head>
 <body>
@@ -52,9 +63,9 @@ textarea{resize:vertical;min-height:60px}
 <div class="topbar">
   <div>
     <div class="topbar-title">Formulir Data Pribadi Pelamar</div>
-    <div class="topbar-sub">PT Mitra Karya Texindo — Harap isi semua data dengan jujur dan lengkap</div>
+    <div class="topbar-sub">Business Management System — Harap isi semua data dengan jujur dan lengkap</div>
   </div>
-  <div class="logo">MKT</div>
+  <div class="logo">BMS</div>
 </div>
 
 <div class="container">
@@ -212,7 +223,7 @@ textarea{resize:vertical;min-height:60px}
           <tbody>
             {% for i in range(10) %}
             <tr>
-              <td>
+              <td data-label="Hubungan">
                 <select name="kel_hubungan_{{ i }}" {{ 'required' if i < 3 else '' }}>
                   <option value="">— Pilih —</option>
                   <option>Diri Sendiri</option>
@@ -226,11 +237,11 @@ textarea{resize:vertical;min-height:60px}
                   <option>Lainnya</option>
                 </select>
               </td>
-              <td><input type="text" name="kel_nama_{{ i }}" placeholder="Nama" {{ 'required' if i < 3 else '' }}></td>
-              <td><select name="kel_lp_{{ i }}" {{ 'required' if i < 3 else '' }}><option value="">-</option><option>L</option><option>P</option></select></td>
-              <td><input type="number" name="kel_usia_{{ i }}" placeholder="Usia" style="width:70px" {{ 'required' if i < 3 else '' }}></td>
-              <td><input type="text" name="kel_pendidikan_{{ i }}" placeholder="SMA/S1..."></td>
-              <td><input type="text" name="kel_pekerjaan_{{ i }}" placeholder="Pekerjaan"></td>
+              <td data-label="Nama"><input type="text" name="kel_nama_{{ i }}" placeholder="Nama" {{ 'required' if i < 3 else '' }}></td>
+              <td data-label="L/P"><select name="kel_lp_{{ i }}" {{ 'required' if i < 3 else '' }}><option value="">-</option><option>L</option><option>P</option></select></td>
+              <td data-label="Usia"><input type="number" name="kel_usia_{{ i }}" placeholder="Usia" style="width:70px" {{ 'required' if i < 3 else '' }}></td>
+              <td data-label="Pendidikan"><input type="text" name="kel_pendidikan_{{ i }}" placeholder="SMA/S1..."></td>
+              <td data-label="Pekerjaan"><input type="text" name="kel_pekerjaan_{{ i }}" placeholder="Pekerjaan"></td>
             </tr>
             {% endfor %}
           </tbody>
@@ -278,12 +289,12 @@ textarea{resize:vertical;min-height:60px}
           <tbody>
             {% for i in range(5) %}
             <tr>
-              <td><select name="pend_tingkat_{{ i }}" {{ 'required' if i == 0 else '' }}><option value="">-</option><option>SD</option><option>SMP</option><option>SMA/SMK</option><option>D3</option><option>S1</option><option>S2</option></select></td>
-              <td><input type="text" name="pend_nama_sekolah_{{ i }}" placeholder="Nama sekolah" {{ 'required' if i == 0 else '' }}></td>
-              <td><input type="text" name="pend_kota_{{ i }}" placeholder="Kota"></td>
-              <td><input type="text" name="pend_jurusan_{{ i }}" placeholder="Jurusan"></td>
-              <td><input type="text" name="pend_tahun_{{ i }}" placeholder="2020" style="width:80px" {{ 'required' if i == 0 else '' }}></td>
-              <td><select name="pend_lulus_{{ i }}" {{ 'required' if i == 0 else '' }}><option value="">-</option><option>Lulus</option><option>Tidak Lulus</option></select></td>
+              <td data-label="Tingkat"><select name="pend_tingkat_{{ i }}" {{ 'required' if i == 0 else '' }}><option value="">-</option><option>SD</option><option>SMP</option><option>SMA/SMK</option><option>D3</option><option>S1</option><option>S2</option></select></td>
+              <td data-label="Nama Sekolah"><input type="text" name="pend_nama_sekolah_{{ i }}" placeholder="Nama sekolah" {{ 'required' if i == 0 else '' }}></td>
+              <td data-label="Kota"><input type="text" name="pend_kota_{{ i }}" placeholder="Kota"></td>
+              <td data-label="Jurusan"><input type="text" name="pend_jurusan_{{ i }}" placeholder="Jurusan"></td>
+              <td data-label="Tahun"><input type="text" name="pend_tahun_{{ i }}" placeholder="2020" style="width:80px" {{ 'required' if i == 0 else '' }}></td>
+              <td data-label="Lulus"><select name="pend_lulus_{{ i }}" {{ 'required' if i == 0 else '' }}><option value="">-</option><option>Lulus</option><option>Tidak Lulus</option></select></td>
             </tr>
             {% endfor %}
           </tbody>
@@ -300,11 +311,11 @@ textarea{resize:vertical;min-height:60px}
           <tbody>
             {% for i in range(5) %}
             <tr>
-              <td><input type="text" name="kerja_perusahaan_{{ i }}" placeholder="PT/CV..." {{ 'required' if i == 0 else '' }}></td>
-              <td><input type="text" name="kerja_jabatan_{{ i }}" placeholder="Jabatan" {{ 'required' if i == 0 else '' }}></td>
-              <td><input type="text" name="kerja_lama_{{ i }}" placeholder="2 tahun" {{ 'required' if i == 0 else '' }}></td>
-              <td><input type="text" name="kerja_gaji_{{ i }}" placeholder="Rp" oninput="formatRupiah(this)" inputmode="numeric"></td>
-              <td><input type="text" name="kerja_alasan_{{ i }}" placeholder="Alasan berhenti"></td>
+              <td data-label="Perusahaan"><input type="text" name="kerja_perusahaan_{{ i }}" placeholder="PT/CV..." {{ 'required' if i == 0 else '' }}></td>
+              <td data-label="Jabatan"><input type="text" name="kerja_jabatan_{{ i }}" placeholder="Jabatan" {{ 'required' if i == 0 else '' }}></td>
+              <td data-label="Lama Kerja"><input type="text" name="kerja_lama_{{ i }}" placeholder="2 tahun" {{ 'required' if i == 0 else '' }}></td>
+              <td data-label="Gaji Terakhir"><input type="text" name="kerja_gaji_{{ i }}" placeholder="Rp" oninput="formatRupiah(this)" inputmode="numeric"></td>
+              <td data-label="Alasan Berhenti"><input type="text" name="kerja_alasan_{{ i }}" placeholder="Alasan berhenti"></td>
             </tr>
             {% endfor %}
           </tbody>
@@ -361,10 +372,10 @@ textarea{resize:vertical;min-height:60px}
           <tbody>
             {% for i in range(3) %}
             <tr>
-              <td><input type="text" name="dar_nama_{{ i }}" placeholder="Nama" {{ 'required' if i==0 else '' }}></td>
-              <td><input type="text" name="dar_telepon_{{ i }}" placeholder="08xx..." {{ 'required' if i==0 else '' }}></td>
-              <td><input type="text" name="dar_pekerjaan_{{ i }}" placeholder="Pekerjaan"></td>
-              <td><input type="text" name="dar_hubungan_{{ i }}" placeholder="Orang Tua/Kakak..." {{ 'required' if i==0 else '' }}></td>
+              <td data-label="Nama"><input type="text" name="dar_nama_{{ i }}" placeholder="Nama" {{ 'required' if i==0 else '' }}></td>
+              <td data-label="Telepon"><input type="text" name="dar_telepon_{{ i }}" placeholder="08xx..." {{ 'required' if i==0 else '' }}></td>
+              <td data-label="Pekerjaan"><input type="text" name="dar_pekerjaan_{{ i }}" placeholder="Pekerjaan"></td>
+              <td data-label="Hubungan"><input type="text" name="dar_hubungan_{{ i }}" placeholder="Orang Tua/Kakak..." {{ 'required' if i==0 else '' }}></td>
             </tr>
             {% endfor %}
           </tbody>
@@ -382,7 +393,7 @@ textarea{resize:vertical;min-height:60px}
           (3, 'Apakah Anda mempunyai kerja sampingan? Dimana dan sebagai apa?'),
           (4, 'Apakah Anda keberatan bila kami minta referensi pada perusahaan tempat Anda bekerja?'),
           (5, 'Apakah Anda mempunyai teman/saudara yang bekerja pada perusahaan ini? Sebutkan.'),
-          (6, 'Apakah Anda saat ini ada sakit sehingga memerlukan pemeriksaan rutin/khusus?'),
+          (6, 'Apakah Anda saat ini ada penyakit sehingga memerlukan pemeriksaan rutin/khusus?'),
           (7, 'Apakah Anda pernah menderita sakit keras/kronis/kecelakaan berat? Kapan dan macam apa? Jelaskan.'),
           (8, 'Apakah ada keluarga/saudara yang sakit berat sehingga memerlukan pemantauan khusus dari Anda? (lingkari: Ya/Tidak — Siapa jika ada: Ayah/Ibu/Suami/Istri/Anak/Lainnya)'),
           (9, 'Apakah Anda pernah menjalani pemeriksaan psikologis/psikiates? Dimana dan tujuan apa?'),
@@ -418,16 +429,7 @@ textarea{resize:vertical;min-height:60px}
               </label>
             </div>
           </div>
-          {% elif num in [1,3,4,6,9,10,11] %}
-          <div style="display:flex;gap:20px;margin-top:4px">
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer">
-              <input type="radio" name="p{{ num }}" value="Ya" required {% if num in [5,7] %}onchange="toggleExtra({{ num }}, this.value)"{% endif %}> Ya
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer">
-              <input type="radio" name="p{{ num }}" value="Tidak" {% if num in [5,7] %}onchange="toggleExtra({{ num }}, this.value)"{% endif %}> Tidak
-            </label>
-          </div>
-          {% elif num in [5,7] %}
+          {% elif num in [1,2,3,4,5,6,7,9,10] %}
           <div style="display:flex;gap:20px;margin-top:4px">
             <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer">
               <input type="radio" name="p{{ num }}" value="Ya" required onchange="toggleExtra({{ num }}, this.value)"> Ya
@@ -437,7 +439,16 @@ textarea{resize:vertical;min-height:60px}
             </label>
           </div>
           <div id="extra-{{ num }}" style="display:none;margin-top:8px">
-            <textarea name="p{{ num }}_detail" rows="2" placeholder="Mohon jelaskan..." style="width:100%;padding:9px 12px;border:1px solid #E0DED6;border-radius:8px;font-size:14px;font-family:inherit"></textarea>
+            <textarea name="p{{ num }}_detail" rows="2" placeholder="Mohon jelaskan lebih lanjut..." style="width:100%;padding:9px 12px;border:1px solid #E0DED6;border-radius:8px;font-size:14px;font-family:inherit;resize:vertical"></textarea>
+          </div>
+          {% elif num == 11 %}
+          <div style="display:flex;gap:20px;margin-top:4px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer">
+              <input type="radio" name="p{{ num }}" value="Ya" required> Ya
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer">
+              <input type="radio" name="p{{ num }}" value="Tidak"> Tidak
+            </label>
           </div>
           {% else %}
           <textarea name="p{{ num }}" required rows="2" placeholder="Jawaban Anda..."></textarea>
@@ -459,7 +470,7 @@ textarea{resize:vertical;min-height:60px}
             <br><br>
             2. Saya memahami bahwa formulir ini akan menjadi <strong>bagian dari perjanjian kerja</strong> apabila saya diterima bekerja di PT Mitra Karya Texindo.
             <br><br>
-            3. Apabila di kemudian hari terbukti terdapat data yang <strong>tidak benar atau menyesatkan</strong>, PT Mitra Karya Texindo berhak mengakhiri hubungan kerja tanpa kewajiban memberikan kompensasi apapun, dan saya wajib membayar ganti rugi sesuai <strong>Pasal 62 UU No. 13 Tahun 2003 tentang Ketenagakerjaan</strong>.
+            3. Apabila di kemudian hari terbukti terdapat data yang <strong>tidak benar atau manipulasi data</strong>, PT Mitra Karya Texindo berhak mengakhiri hubungan kerja tanpa kewajiban memberikan kompensasi apapun, dan saya wajib membayar ganti rugi sesuai <strong>Pasal 62 UU No. 13 Tahun 2003 tentang Ketenagakerjaan</strong>.
             <br><br>
             4. Pernyataan ini saya buat dengan <strong>kesadaran penuh, tanpa paksaan</strong> dari pihak manapun.
           </div>
@@ -478,7 +489,7 @@ textarea{resize:vertical;min-height:60px}
             </div>
           </div>
         </div>
-        <button type="submit" class="btn-submit" style="margin-top:16px" onclick="return checkDeklarasiName() && validateSosmed()">Simpan Data & Lanjutkan ke Tes →</button>
+        <button type="submit" class="btn-submit" style="margin-top:16px" onclick="return validateTables() && validateSosmed() && checkDeklarasiName()">Simpan Data & Lanjutkan ke Tes →</button>
       </div>
     </div>
 
@@ -560,6 +571,105 @@ function checkSosmedRequired() {
   var year = parseInt(tgl.split('-')[0]);
   var note = document.getElementById('sosmed-note');
   if (note) note.style.display = year > 1993 ? 'block' : 'none';
+}
+
+function showDetail(num, val) {
+  var el = document.getElementById('detail-' + num);
+  if (el) el.style.display = (val === 'Ya') ? 'block' : 'none';
+}
+
+function validateTables() {
+  var errors = [];
+
+  // Susunan Keluarga — if any field filled, all must be filled
+  for (var i = 1; i <= 10; i++) {
+    var hub = document.querySelector('[name="kel_hubungan_' + i + '"]');
+    var nama = document.querySelector('[name="kel_nama_' + i + '"]');
+    var lp   = document.querySelector('[name="kel_lp_' + i + '"]');
+    var usia = document.querySelector('[name="kel_usia_' + i + '"]');
+    var pend = document.querySelector('[name="kel_pendidikan_' + i + '"]');
+    var kerj = document.querySelector('[name="kel_pekerjaan_' + i + '"]');
+    if (!hub || !nama) continue;
+    var vals = [hub.value, nama.value, lp ? lp.value : '', usia ? usia.value : '', pend ? pend.value : '', kerj ? kerj.value : ''];
+    var filled = vals.filter(function(v){ return v.trim() !== ''; }).length;
+    if (filled > 0 && filled < 6) {
+      errors.push('Susunan Keluarga baris ' + i + ': harap isi semua kolom (Hubungan, Nama, L/P, Usia, Pendidikan, Pekerjaan).');
+    }
+  }
+
+  // Riwayat Pendidikan — if any field filled, all must be filled
+  for (var i = 0; i < 5; i++) {
+    var tingkat = document.querySelector('[name="pend_tingkat_' + i + '"]');
+    var sekolah = document.querySelector('[name="pend_nama_sekolah_' + i + '"]');
+    var kota    = document.querySelector('[name="pend_kota_' + i + '"]');
+    var jurusan = document.querySelector('[name="pend_jurusan_' + i + '"]');
+    var tahun   = document.querySelector('[name="pend_tahun_' + i + '"]');
+    var lulus   = document.querySelector('[name="pend_lulus_' + i + '"]');
+    if (!tingkat) continue;
+    var vals = [tingkat.value, sekolah ? sekolah.value : '', kota ? kota.value : '', jurusan ? jurusan.value : '', tahun ? tahun.value : '', lulus ? lulus.value : ''];
+    var filled = vals.filter(function(v){ return v.trim() !== ''; }).length;
+    if (filled > 0 && filled < 6) {
+      errors.push('Riwayat Pendidikan baris ' + (i+1) + ': harap isi semua kolom (Tingkat, Nama Sekolah, Kota, Jurusan, Tahun, Lulus).');
+    }
+  }
+
+  // Riwayat Pekerjaan — if any field filled, all must be filled
+  for (var i = 0; i < 5; i++) {
+    var perus  = document.querySelector('[name="kerja_perusahaan_' + i + '"]');
+    var jabat  = document.querySelector('[name="kerja_jabatan_' + i + '"]');
+    var lama   = document.querySelector('[name="kerja_lama_' + i + '"]');
+    var gaji   = document.querySelector('[name="kerja_gaji_' + i + '"]');
+    var alasan = document.querySelector('[name="kerja_alasan_' + i + '"]');
+    if (!perus) continue;
+    var vals = [perus.value, jabat ? jabat.value : '', lama ? lama.value : '', gaji ? gaji.value : '', alasan ? alasan.value : ''];
+    var filled = vals.filter(function(v){ return v.trim() !== ''; }).length;
+    if (filled > 0 && filled < 5) {
+      errors.push('Riwayat Pekerjaan baris ' + (i+1) + ': harap isi semua kolom (Perusahaan, Jabatan, Lama Kerja, Gaji Terakhir, Alasan Berhenti).');
+    }
+  }
+
+  // Kontak Darurat — if any field filled, all must be filled
+  for (var i = 0; i < 3; i++) {
+    var dNama = document.querySelector('[name="dar_nama_' + i + '"]');
+    var dTelp = document.querySelector('[name="dar_telepon_' + i + '"]');
+    var dKerj = document.querySelector('[name="dar_pekerjaan_' + i + '"]');
+    var dHub  = document.querySelector('[name="dar_hubungan_' + i + '"]');
+    if (!dNama) continue;
+    var vals = [dNama.value, dTelp ? dTelp.value : '', dKerj ? dKerj.value : '', dHub ? dHub.value : ''];
+    var filled = vals.filter(function(v){ return v.trim() !== ''; }).length;
+    if (filled > 0 && filled < 4) {
+      errors.push('Kontak Darurat baris ' + (i+1) + ': harap isi semua kolom (Nama, Telepon, Pekerjaan, Hubungan).');
+    }
+  }
+
+  // Pertanyaan wawancara — if Ya selected, detail textarea must be filled
+  // Q8 special — if Ya, at least one family member checkbox required
+  var q8ya = document.querySelector('[name="p8"][value="Ya"]');
+  if (q8ya && q8ya.checked) {
+    var checked = document.querySelectorAll('[name="p8_anggota"]:checked');
+    if (checked.length === 0) {
+      errors.push('Pertanyaan 8: harap pilih siapa anggota keluarga yang sakit.');
+    }
+  }
+
+  [1, 2, 3, 4, 5, 6, 7, 9, 10].forEach(function(num) {
+    var yaRadio = document.querySelector('[name="p' + num + '"][value="Ya"]');
+    if (yaRadio && yaRadio.checked) {
+      var box = document.getElementById('extra-' + num);
+      if (box) {
+        var ta = box.querySelector('textarea');
+        if (ta && ta.value.trim() === '') {
+          errors.push('Pertanyaan ' + num + ': harap jelaskan lebih lanjut di kolom keterangan.');
+        }
+      }
+    }
+  });
+
+  if (errors.length > 0) {
+    alert('Harap perbaiki:\n\n' + errors.join('\n'));
+    return false;
+  }
+  return true;
 }
 
 function validateSosmed() {
