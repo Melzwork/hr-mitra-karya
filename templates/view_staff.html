@@ -4,7 +4,7 @@
 {% block topbar_actions %}
 <a href="{{ url_for('staff_list') }}" class="btn btn-outline btn-sm">← Kembali</a>
 {% if is_head_or_owner %}
-<a href="{{ url_for('edit_staff', staff_id=staff.id) }}" class="btn btn-outline btn-sm">✏ Edit Data</a>
+{% if is_head_or_owner %}<a href="{{ url_for('edit_staff', staff_id=staff.id) }}" class="btn btn-outline btn-sm">✏ Edit Data</a>{% endif %}
 {% endif %}
 {% endblock %}
 
@@ -122,6 +122,9 @@
         <span class="badge badge-{{ 'aktif' if p.status=='AKTIF' else 'inactive' }}">{{ p.status }}</span>
         {% if p.evaluation_result %}<span class="badge badge-hl">{{ p.evaluation_result }}</span>{% endif %}
         {% if p.bpjs_enrolled %}<span class="badge badge-aktif">BPJS ✓</span>{% endif %}
+        {% if is_owner %}
+        <a href="{{ url_for('edit_period', period_id=p.id) }}" class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 10px;">✏ Edit Periode</a>
+        {% endif %}
       </div>
     </div>
     {% if p.end_reason %}<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Alasan: {{ p.end_reason }}</div>{% endif %}

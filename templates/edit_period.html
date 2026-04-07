@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Edit Periode Kerja{% endblock %}
+{% block content %}
+<div style="max-width:600px;margin:0 auto;">
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+    <a href="{{ url_for('view_staff', staff_id=staff.id) }}" class="btn btn-outline btn-sm">← Kembali</a>
+    <div>
+      <div style="font-size:18px;font-weight:700;color:var(--text-main);">Edit Periode Kerja</div>
+      <div style="font-size:13px;color:var(--text-muted);">{{ staff.full_name }} — Periode {{ period.period_number }}</div>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}" style="margin-bottom:16px;">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="card" style="padding:24px;">
+    <form method="POST">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px;">Tipe Kontrak</label>
+          <select name="staff_type" required style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--surface);color:var(--text-main);">
+            <option value="PKWT" {{ 'selected' if period.staff_type=='PKWT' }}>PKWT</option>
+            <option value="HL-Lamaran" {{ 'selected' if period.staff_type=='HL-Lamaran' }}>HL-Lamaran</option>
+            <option value="HL-Outsource" {{ 'selected' if period.staff_type=='HL-Outsource' }}>HL-Outsource</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px;">Sponsor (jika HL-Outsource)</label>
+          <input type="text" name="sponsor_name" value="{{ period.sponsor_name or '' }}" placeholder="Nama sponsor" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--surface);color:var(--text-main);box-sizing:border-box;">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px;">Tanggal Mulai <span style="color:#C0392B">*</span></label>
+          <input type="date" name="start_date" required value="{{ period.start_date }}" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--surface);color:var(--text-main);box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px;">Tanggal Akhir Kontrak <span style="color:#C0392B">*</span></label>
+          <input type="date" name="contract_end_date" required value="{{ period.contract_end_date or '' }}" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--surface);color:var(--text-main);box-sizing:border-box;">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px;">Tanggal Keluar (jika sudah)</label>
+          <input type="date" name="end_date" value="{{ period.end_date or '' }}" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--surface);color:var(--text-main);box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px;">Alasan Keluar</label>
+          <input type="text" name="end_reason" value="{{ period.end_reason or '' }}" placeholder="Alasan keluar" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--surface);color:var(--text-main);box-sizing:border-box;">
+        </div>
+      </div>
+
+      <div style="margin-bottom:24px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:var(--text-main);">
+          <input type="checkbox" name="bpjs_enrolled" {{ 'checked' if period.bpjs_enrolled }} style="width:16px;height:16px;">
+          BPJS Terdaftar
+        </label>
+      </div>
+
+      <div style="background:#FFF8E1;border:1px solid #FFD54F;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:12px;color:#7B5800;">
+        ⚠️ Perubahan ini akan dicatat di Audit Log. Gunakan dengan hati-hati.
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <button type="submit" class="btn btn-primary">💾 Simpan Perubahan</button>
+        <a href="{{ url_for('view_staff', staff_id=staff.id) }}" class="btn btn-outline">Batal</a>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
