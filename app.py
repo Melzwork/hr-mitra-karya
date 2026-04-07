@@ -1359,6 +1359,7 @@ LOGIC_QUESTIONS = {
 POSITION_TIER = {
     'Operator Mesin':  'operator',
     'Tukang Panggul':  'operator',
+    'Security':        'operator',
     'Kepala Shift':    'staff',
     'Kepala Bagian':   'staff',
     'Admin':           'admin',
