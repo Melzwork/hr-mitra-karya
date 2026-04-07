@@ -1,5 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime, date, timedelta
+import pytz
+WIB = pytz.timezone('Asia/Jakarta')
+def now_wib(): return datetime.now(WIB).replace(tzinfo=None)
 from functools import wraps
 import os, hashlib, json, calendar, random, string
 
@@ -43,6 +46,7 @@ DEPARTMENTS_POSITIONS = {
     "Gudang Obat": ["Gudang Obat"],
     "Personalia": ["Staff Personalia"],
     "Resepsionis": ["Resepsionis"],
+    "Admin": ["Admin (K)", "Admin"],
 }
 
 PROVINCES = [
@@ -405,10 +409,27 @@ def gen_doc_ref(emp_id, code):
         db.commit()
     return f"{emp_id}-{code}-{n:03d}"
 
+# Tier visibility rules
+TIER_MIN_ROLE = {
+    'operator': 'hr_staff',   # all can see
+    'staff':    'hr_head',    # hr_head + owner
+    'admin_k':  'hr_head',    # hr_head + owner (Kepala Bagian & Admin K)
+    'admin':    'owner',      # owner only
+}
+ROLE_LEVEL = {'hr_staff': 1, 'hr_head': 2, 'owner': 3}
+
+def can_access_tier(tier):
+    """Check if current user's role can access results of given tier."""
+    min_role = TIER_MIN_ROLE.get(tier, 'hr_staff')
+    user_level  = ROLE_LEVEL.get(session.get('role',''), 0)
+    min_level   = ROLE_LEVEL.get(min_role, 1)
+    return user_level >= min_level
+
 def log_audit(action, table=None, record_id=None, details=None):
     with get_db() as db:
-        db.execute("INSERT INTO audit_log (username,role,action,table_name,record_id,details) VALUES (?,?,?,?,?,?)",
-                  (session.get('user','?'),session.get('role','?'),action,table,record_id,details))
+        db.execute("INSERT INTO audit_log (username,role,action,table_name,record_id,details,created_at) VALUES (?,?,?,?,?,?,?)",
+                  (session.get('user','?'),session.get('role','?'),action,table,record_id,details,
+                   now_wib().strftime('%Y-%m-%d %H:%M:%S')))
         db.commit()
 
 def get_pkwt_total_days(staff_id):
@@ -712,18 +733,19 @@ def edit_staff(staff_id):
     if not staff: return redirect(url_for('staff_list'))
     if request.method == 'POST':
         with get_db() as db:
-            db.execute("""UPDATE staff SET full_name=?,birth_date=?,birth_place=?,gender=?,religion=?,
+            db.execute("""UPDATE staff SET full_name=?,ktp_number=?,birth_date=?,birth_place=?,gender=?,religion=?,
                          address=?,rt_rw=?,kelurahan=?,kecamatan=?,kota=?,provinsi=?,
                          phone=?,position=?,department=?,education=?,
                          emergency_contact=?,emergency_relationship=?,emergency_phone=?,
-                         updated_by=?,updated_at=datetime('now','localtime') WHERE id=?""",
-                      (request.form['full_name'],request.form['birth_date'],request.form.get('birth_place',''),request.form['gender'],
-                       request.form['religion'],request.form['address'],request.form['rt_rw'],
-                       request.form['kelurahan'],request.form['kecamatan'],request.form['kota'],
+                         updated_by=?,updated_at=? WHERE id=?""",
+                      (request.form['full_name'],request.form.get('ktp_number',''),
+                       request.form['birth_date'],request.form.get('birth_place',''),request.form['gender'],
+                       request.form['religion'],request.form['address'],request.form.get('rt_rw',''),
+                       request.form.get('kelurahan',''),request.form.get('kecamatan',''),request.form['kota'],
                        request.form['provinsi'],request.form['phone'],request.form['position'],
                        request.form['department'],request.form['education'],
                        request.form['emergency_contact'],request.form['emergency_relationship'],
-                       request.form['emergency_phone'],session['user'],staff_id))
+                       request.form['emergency_phone'],session['user'],now_wib().strftime('%Y-%m-%d %H:%M:%S'),staff_id))
             db.commit()
             log_audit('EDIT_STAFF','staff',staff_id,f"Edit: {staff['full_name']}")
         flash('Data diperbarui.','success')
@@ -855,6 +877,41 @@ def renew_contract(staff_id):
                  f"Hasil:{result}|Gaji:{salary}|BPJS:{'Ya' if bpjs else 'Tidak'}")
     flash(f'Kontrak {staff["full_name"]} diperbarui.','success')
     return redirect(url_for('view_staff',staff_id=staff_id))
+
+@app.route('/period/<int:period_id>/edit', methods=['GET','POST'])
+@login_required
+def edit_period(period_id):
+    """HR Head / Owner can edit employment period dates and details."""
+    if session.get('role') != 'owner':
+        flash('Hanya Owner yang dapat mengedit periode kerja.', 'error')
+        return redirect(url_for('staff_list'))
+    with get_db() as db:
+        period = db.fetchone("SELECT * FROM employment_periods WHERE id=?", (period_id,))
+        if not period:
+            flash('Periode tidak ditemukan.', 'error')
+            return redirect(url_for('staff_list'))
+        staff = db.fetchone("SELECT * FROM staff WHERE id=?", (period['staff_id'],))
+    if request.method == 'POST':
+        start_date        = request.form.get('start_date','').strip()
+        contract_end_date = request.form.get('contract_end_date','').strip()
+        end_date          = request.form.get('end_date','').strip() or None
+        end_reason        = request.form.get('end_reason','').strip() or None
+        staff_type        = request.form.get('staff_type','').strip()
+        sponsor_name      = request.form.get('sponsor_name','').strip() or None
+        bpjs_enrolled     = 1 if request.form.get('bpjs_enrolled') else 0
+        with get_db() as db:
+            db.execute("""UPDATE employment_periods SET
+                         start_date=?, contract_end_date=?, end_date=?, end_reason=?,
+                         staff_type=?, sponsor_name=?, bpjs_enrolled=?
+                         WHERE id=?""",
+                      (start_date, contract_end_date, end_date, end_reason,
+                       staff_type, sponsor_name, bpjs_enrolled, period_id))
+            db.commit()
+        log_audit('EDIT_PERIOD', 'employment_periods', period_id,
+                  f"Edit periode {period['period_number']} — {staff['full_name']}")
+        flash('Periode kerja berhasil diperbarui.', 'success')
+        return redirect(url_for('view_staff', staff_id=period['staff_id']))
+    return render_template('edit_period.html', period=period, staff=staff)
 
 @app.route('/staff/<int:staff_id>/exit', methods=['POST'])
 @login_required
@@ -1363,7 +1420,8 @@ POSITION_TIER = {
     'Security':        'operator',
     'Mekanik':         'operator',
     'Kepala Shift':    'staff',
-    'Kepala Bagian':   'staff',
+    'Kepala Bagian':   'admin_k',
+    'Admin (K)':       'admin_k',
     'Admin':           'admin',
 }
 
@@ -1562,7 +1620,7 @@ def tes_masuk():
     if row['status'] != 'unused':
         return redirect(url_for('tes_landing', error='Kode sudah digunakan atau tidak berlaku.'))
     # Check expiry
-    now = datetime.now()
+    now = now_wib()
     expires = row['expires_at']
     if isinstance(expires, str):
         expires = datetime.strptime(expires[:19], '%Y-%m-%d %H:%M:%S')
@@ -1774,6 +1832,11 @@ def tes_selesai():
 @app.route('/hr/hasil-tes/<int:result_id>/print')
 @login_required
 def print_hasil_tes(result_id):
+    with get_db() as db:
+        _r = db.fetchone("SELECT tier FROM test_results WHERE id=?", (result_id,))
+    if _r and not can_access_tier(_r.get('tier','operator')):
+        flash('Akses ditolak — level jabatan tidak sesuai hak akses Anda.', 'error')
+        return redirect(url_for('hr_hasil_tes'))
     """Generate combined PDF: Data Pelamar + Hasil Tes + Deklarasi."""
     with get_db() as db:
         result  = db.fetchone("SELECT * FROM test_results WHERE id=?", (result_id,))
@@ -2171,19 +2234,23 @@ def hr_hasil_tes():
         page = min(page, total_pages)
         offset = (page - 1) * PER_PAGE
 
-        # Fetch only this page
-        results = db.fetchall(
+        # Fetch only this page — then filter by tier access
+        all_results = db.fetchall(
             f"SELECT * FROM test_results {where} ORDER BY selesai_at DESC LIMIT ? OFFSET ?",
             params + [PER_PAGE, offset])
+        results = [r for r in all_results if can_access_tier(r.get('tier','operator'))]
 
-        # Pending codes (unused, not yet expired)
-        pending_codes = db.fetchall("""SELECT * FROM test_codes
+        # Pending codes — filter by tier access
+        all_pending = db.fetchall("""SELECT * FROM test_codes
             WHERE status='unused' ORDER BY created_at DESC LIMIT 20""")
+        pending_codes = [c for c in all_pending if can_access_tier(c.get('tier','operator'))]
 
+    # Filter positions based on role
+    accessible_positions = [p for p in POSITIONS if can_access_tier(POSITION_TIER.get(p,'operator'))]
     return render_template('hr_hasil_tes.html',
                            results=results,
                            pending_codes=pending_codes,
-                           positions=POSITIONS,
+                           positions=accessible_positions,
                            filter_verdict=filter_verdict,
                            filter_posisi=filter_posisi,
                            filter_tanggal=filter_tanggal,
@@ -2202,7 +2269,7 @@ def hr_buat_kode():
         return redirect(url_for('hr_hasil_tes'))
     tier   = POSITION_TIER[posisi]
     code   = gen_test_code()
-    expires = datetime.now() + timedelta(hours=1)
+    expires = now_wib() + timedelta(hours=1)
     with get_db() as db:
         if PG:
             db.execute("""INSERT INTO test_codes (code, posisi, tier, status, created_by, expires_at)
@@ -2345,6 +2412,7 @@ def tes_identitas_confirm():
         nama = form_data.get('nama_lengkap','')
         nik  = form_data.get('nik','')
         tier = session['tes_tier']
+        if tier == 'admin_k': tier = 'admin'  # admin_k uses same questions as admin
         accuracy_pool = list(ACCURACY_PAIRS.get(tier, ACCURACY_PAIRS['operator']))
         random.shuffle(accuracy_pool)
         selected_acc = accuracy_pool[:10]
@@ -2396,6 +2464,11 @@ def auto_cleanup_results():
 @login_required
 @role_required('hr_head','owner')
 def delete_hasil_tes(result_id):
+    with get_db() as db:
+        _r = db.fetchone("SELECT tier FROM test_results WHERE id=?", (result_id,))
+    if _r and not can_access_tier(_r.get('tier','operator')):
+        flash('Akses ditolak.', 'error')
+        return redirect(url_for('hr_hasil_tes'))
     with get_db() as db:
         db.execute("DELETE FROM data_pelamar WHERE result_id=?", (result_id,))
         db.execute("DELETE FROM test_results WHERE id=?", (result_id,))
