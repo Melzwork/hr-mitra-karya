@@ -156,12 +156,16 @@
         <div class="sp-desc">{{ d.description }}</div>
         <div class="sp-ref">Ref: {{ d.doc_ref }}</div>
         {% if d.drive_path %}
+        {% if staff.position in ['Kepala Bagian', 'Admin (K)'] and not is_head_or_owner %}
+        <div style="font-size:11px;color:var(--gray-400);margin-top:4px;">🔒 Link terbatas</div>
+        {% else %}
         <div style="font-size:11px;color:var(--green);margin-top:4px;">✓ <a href="{{ d.drive_path }}" target="_blank" style="color:var(--green);font-weight:500;">Buka Google Drive ↗</a></div>
+        {% endif %}
         {% endif %}
         {% if d.physical_location %}
         <div style="font-size:11px;color:var(--gray-400);margin-top:3px;">📁 {{ d.physical_location }}</div>
         {% endif %}
-        {% if not d.drive_path or not d.physical_location or is_head_or_owner %}
+        {% if (not d.drive_path or not d.physical_location or is_head_or_owner) and (is_head_or_owner or staff.position not in ['Kepala Bagian', 'Admin (K)']) %}
         <button onclick="openUpdateModal('disc',{{ d.id }},'{{ d.doc_ref }}',{{ 'true' if d.drive_path else 'false' }},{{ 'true' if d.physical_location else 'false' }})" class="btn btn-outline btn-sm" style="font-size:11px;margin-top:6px;">{{ '✏ Edit Lokasi' if is_head_or_owner and d.drive_path and d.physical_location else '+ Isi Lokasi Dokumen' }}</button>
         {% endif %}
       </div>
@@ -205,7 +209,11 @@
           <td style="font-size:12px;color:var(--text-muted);max-width:160px;">{{ doc.reason or doc.description or '—' }}</td>
           <td style="font-size:12px;">
             {% if doc.drive_path %}
+            {% if staff.position in ['Kepala Bagian', 'Admin (K)'] and not is_head_or_owner %}
+            <span style="color:var(--gray-400);">🔒 Terbatas</span>
+            {% else %}
             <a href="{{ doc.drive_path }}" target="_blank" style="color:var(--green);font-weight:500;text-decoration:none;">✓ Buka Drive ↗</a>
+            {% endif %}
             {% elif doc.need_drive %}
             <span style="color:var(--orange);">Belum diisi</span>
             {% else %}
@@ -215,7 +223,7 @@
           <td style="font-size:12px;color:var(--text-muted);">{{ doc.physical_location or '—' }}</td>
           <td style="font-size:11px;color:var(--text-muted);">{{ doc.created_at|datestr }}</td>
           <td>
-          {% if (doc.need_drive and not doc.drive_path) or not doc.physical_location or is_head_or_owner %}
+          {% if ((doc.need_drive and not doc.drive_path) or not doc.physical_location or is_head_or_owner) and (is_head_or_owner or staff.position not in ['Kepala Bagian', 'Admin (K)']) %}
             <button onclick="openUpdateModal('doc',{{ doc.id }},'{{ doc.doc_ref }}',{{ 'true' if doc.drive_path else 'false' }},{{ 'true' if doc.physical_location else 'false' }})" class="btn btn-outline btn-xs">{{ '✏ Edit' if is_head_or_owner and doc.drive_path and doc.physical_location else '+ Isi' }}</button>
           {% endif %}
           </td>

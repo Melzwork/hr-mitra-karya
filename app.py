@@ -414,9 +414,13 @@ TIER_MIN_ROLE = {
     'operator': 'hr_staff',   # all can see
     'staff':    'hr_head',    # hr_head + owner
     'admin_k':  'hr_head',    # hr_head + owner (Kepala Bagian & Admin K)
-    'admin':    'owner',      # owner only
+    'admin':    'hr_staff',   # all can see (regular Admin)
 }
 ROLE_LEVEL = {'hr_staff': 1, 'hr_head': 2, 'owner': 3}
+
+def normalize_tier(tier):
+    """Map admin_k → admin for question bank lookup."""
+    return 'admin' if tier == 'admin_k' else tier
 
 def can_access_tier(tier):
     """Check if current user's role can access results of given tier."""
@@ -780,6 +784,10 @@ def add_discipline(staff_id):
 @login_required
 def update_discipline(disc_id):
     with get_db() as db:
+        _d = db.fetchone("SELECT s.position FROM discipline_records dr JOIN staff s ON s.id=dr.staff_id WHERE dr.id=?", (disc_id,))
+    if _d and _d['position'] in ('Kepala Bagian', 'Admin (K)') and session.get('role') == 'hr_staff':
+        return 'Akses ditolak', 403
+    with get_db() as db:
         disc = db.fetchone("SELECT * FROM discipline_records WHERE id=?", (disc_id,))
         drive = request.form.get('drive_path','').strip()
         phys  = request.form.get('physical_location','').strip()
@@ -803,6 +811,11 @@ def update_discipline(disc_id):
 @app.route('/staff/<int:staff_id>/add_doc', methods=['POST'])
 @login_required
 def add_doc(staff_id):
+    with get_db() as db:
+        _s = db.fetchone("SELECT position FROM staff WHERE id=?", (staff_id,))
+    if _s and _s['position'] in ('Kepala Bagian', 'Admin (K)') and session.get('role') == 'hr_staff':
+        flash('Akses ditolak — hanya HR Head atau Owner yang dapat mengelola dokumen posisi ini.', 'error')
+        return redirect(url_for('view_staff', staff_id=staff_id))
     with get_db() as db:
         staff    = db.fetchone("SELECT * FROM staff WHERE id=?", (staff_id,))
         doc_type = request.form['doc_type']
@@ -829,6 +842,10 @@ def add_doc(staff_id):
 @app.route('/document/<int:doc_id>/update', methods=['POST'])
 @login_required
 def update_doc(doc_id):
+    with get_db() as db:
+        _d = db.fetchone("SELECT s.position FROM documents d JOIN staff s ON s.id=d.staff_id WHERE d.id=?", (doc_id,))
+    if _d and _d['position'] in ('Kepala Bagian', 'Admin (K)') and session.get('role') == 'hr_staff':
+        return 'Akses ditolak', 403
     with get_db() as db:
         doc   = db.fetchone("SELECT * FROM documents WHERE id=?", (doc_id,))
         drive = request.form.get('drive_path','').strip()
@@ -1623,7 +1640,12 @@ def tes_masuk():
     now = now_wib()
     expires = row['expires_at']
     if isinstance(expires, str):
-        expires = datetime.strptime(expires[:19], '%Y-%m-%d %H:%M:%S')
+        try:
+            expires = datetime.strptime(expires[:19], '%Y-%m-%d %H:%M:%S')
+        except:
+            expires = now  # treat as expired if unparseable
+    elif hasattr(expires, 'tzinfo') and expires.tzinfo:
+        expires = expires.replace(tzinfo=None)
     if now > expires:
         with get_db() as db:
             db.execute("UPDATE test_codes SET status='expired' WHERE code=?", (code,))
@@ -2180,18 +2202,18 @@ def hr_answer_key():
     """Printable answer key for all test sections and tiers."""
     sections = []
     for tier in ['operator','staff','admin']:
-        pairs = ACCURACY_PAIRS.get(tier, [])
+        pairs = ACCURACY_PAIRS.get(normalize_tier(tier), [])
         qs = [{'no':i,'a':a,'b':b,'ans':'SAMA' if same else 'BERBEDA'} for i,(a,b,same) in enumerate(pairs,1)]
         sections.append({'section':'Ketelitian (Sama/Berbeda)','tier':tier.capitalize(),'type':'ketelitian','questions':qs})
     for tier in ['operator','staff','admin']:
-        pool = MATH_QUESTIONS.get(tier, [])
+        pool = MATH_QUESTIONS.get(normalize_tier(tier), [])
         qs = []
         for i,q in enumerate(pool,1):
             opts = q.get('opts',[]); ai = q.get('ans',0)
             qs.append({'no':i,'q':q['q'],'opts':opts,'ans_idx':ai,'ans':opts[ai] if ai<len(opts) else ''})
         sections.append({'section':'Matematika','tier':tier.capitalize(),'type':'multiple','questions':qs})
     for tier in ['operator','staff','admin']:
-        pool = LOGIC_QUESTIONS.get(tier, [])
+        pool = LOGIC_QUESTIONS.get(normalize_tier(tier), [])
         qs = []
         for i,q in enumerate(pool,1):
             opts = q.get('opts',[]); ai = q.get('ans',0)
@@ -2212,14 +2234,11 @@ def hr_hasil_tes():
     filter_tanggal = request.args.get('tanggal', '')
 
     with get_db() as db:
-        # Auto-expire unused codes whose 1-hour window has passed
-        if PG:
-            db.execute("""UPDATE test_codes SET status='expired'
-                         WHERE status='unused' AND expires_at < NOW()""")
-        else:
-            db.execute("""UPDATE test_codes SET status='expired'
-                         WHERE status='unused' AND expires_at < ?""",
-                      (datetime.now().strftime('%Y-%m-%d %H:%M:%S'),))
+        # Auto-expire unused codes whose 1-hour window has passed (use WIB time)
+        now_str = now_wib().strftime('%Y-%m-%d %H:%M:%S')
+        db.execute("""UPDATE test_codes SET status='expired'
+                     WHERE status='unused' AND expires_at < ?""",
+                  (now_str,))
 
         # Build filtered query
         where = "WHERE 1=1"
@@ -2270,16 +2289,11 @@ def hr_buat_kode():
     tier   = POSITION_TIER[posisi]
     code   = gen_test_code()
     expires = now_wib() + timedelta(hours=1)
+    expires_str = expires.strftime('%Y-%m-%d %H:%M:%S')
     with get_db() as db:
-        if PG:
-            db.execute("""INSERT INTO test_codes (code, posisi, tier, status, created_by, expires_at)
-                         VALUES (?,?,?,?,?,?)""",
-                      (code, posisi, tier, 'unused', session['user'], expires))
-        else:
-            db.execute("""INSERT INTO test_codes (code, posisi, tier, status, created_by, expires_at)
-                         VALUES (?,?,?,?,?,?)""",
-                      (code, posisi, tier, 'unused', session['user'],
-                       expires.strftime('%Y-%m-%d %H:%M:%S')))
+        db.execute("""INSERT INTO test_codes (code, posisi, tier, status, created_by, expires_at)
+                     VALUES (?,?,?,?,?,?)""",
+                  (code, posisi, tier, 'unused', session['user'], expires_str))
     log_audit('BUAT_KODE_TES', 'test_codes', None, f"Kode: {code} | Posisi: {posisi} | Tier: {tier}")
     flash(f'Kode berhasil dibuat: {code} — berlaku 1 jam untuk posisi {posisi}.', 'success')
     return redirect(url_for('hr_hasil_tes'))
@@ -2411,8 +2425,7 @@ def tes_identitas_confirm():
         form_data = json.loads(session.get('tes_form_data','{}'))
         nama = form_data.get('nama_lengkap','')
         nik  = form_data.get('nik','')
-        tier = session['tes_tier']
-        if tier == 'admin_k': tier = 'admin'  # admin_k uses same questions as admin
+        tier = normalize_tier(session['tes_tier'])
         accuracy_pool = list(ACCURACY_PAIRS.get(tier, ACCURACY_PAIRS['operator']))
         random.shuffle(accuracy_pool)
         selected_acc = accuracy_pool[:10]
