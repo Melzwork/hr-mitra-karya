@@ -1553,6 +1553,28 @@ def init_test_tables():
         ]:
             try: cur.execute(f"ALTER TABLE test_results ADD COLUMN {col} {defn}")
             except: pass
+        # Attendance tables (PostgreSQL)
+        try:
+            cur.execute("""CREATE TABLE IF NOT EXISTS attendance_sessions (
+                id SERIAL PRIMARY KEY,
+                session_date VARCHAR(10) NOT NULL,
+                shift VARCHAR(10) NOT NULL,
+                is_locked INTEGER DEFAULT 0,
+                locked_by VARCHAR(100),
+                locked_at VARCHAR(30),
+                created_by VARCHAR(100),
+                created_at VARCHAR(30),
+                UNIQUE(session_date, shift))""")
+        except: pass
+        try:
+            cur.execute("""CREATE TABLE IF NOT EXISTS attendance_records (
+                id SERIAL PRIMARY KEY,
+                session_id INTEGER NOT NULL,
+                staff_id INTEGER NOT NULL,
+                created_by VARCHAR(100),
+                created_at VARCHAR(30),
+                UNIQUE(session_id, staff_id))""")
+        except: pass
         conn.close()
     else:
         with DB() as db:
