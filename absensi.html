@@ -50,8 +50,8 @@
         <div style="font-size:11px;color:var(--text-muted);" id="session-sub">Pilih tanggal dan shift</div>
       </div>
       <div style="display:flex;gap:8px;" id="action-btns">
-        <button onclick="openModal()" id="btn-tambah" class="btn btn-outline btn-sm" style="display:none;">+ Tambah Karyawan</button>
-        <button onclick="saveSession()" id="btn-save" class="btn btn-primary btn-sm" style="display:none;">💾 Simpan Absensi</button>
+        <button onclick="openModal()" id="btn-tambah" class="btn btn-outline btn-sm">+ Tambah Karyawan</button>
+        <button onclick="saveSession()" id="btn-save" class="btn btn-primary btn-sm">💾 Simpan Absensi</button>
         <button onclick="unlockSession()" id="btn-unlock" class="btn btn-sm" style="display:none;background:#E8A020;color:#fff;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;">🔓 Buka Kunci</button>
       </div>
     </div>
@@ -216,6 +216,14 @@ function loadSession() {
     .catch(() => {
       document.getElementById('loading-msg').style.display = 'none';
       document.getElementById('empty-msg').style.display = 'block';
+      // Still show action buttons so HR can use the page
+      document.getElementById('btn-tambah').style.display = '';
+      document.getElementById('btn-save').style.display = '';
+      const d = document.getElementById('att-date').value;
+      const s = document.getElementById('att-shift').value;
+      const shiftLabel = s === 'Pagi' ? '🌅 Shift Pagi' : '🌙 Shift Malam';
+      document.getElementById('session-title').textContent = `Input Absensi — ${shiftLabel} · ${d}`;
+      document.getElementById('session-sub').textContent = '0 karyawan tercatat';
     });
 }
 
