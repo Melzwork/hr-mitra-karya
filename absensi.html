@@ -8,7 +8,7 @@
 .tab-content.active{display:block;}
 .att-th{padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);background:var(--gray-100);}
 .att-td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;}
-.sitem{padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.sitem{padding:12px 16px;cursor:pointer;border-bottom:1px solid #e8e7e2;display:flex;align-items:center;justify-content:space-between;background:#ffffff;}
 .sitem:hover{background:var(--gray-100);}
 .sitem.dis{opacity:.5;cursor:not-allowed;pointer-events:none;}
 </style>
@@ -119,18 +119,18 @@
 
 <!-- Modal -->
 <div id="mod-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;" onclick="closeMod()"></div>
-<div id="mod-box" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--surface);border-radius:14px;width:480px;max-width:95vw;max-height:80vh;overflow:hidden;flex-direction:column;z-index:9999;box-shadow:0 20px 60px rgba(0,0,0,.3);">
-  <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+<div id="mod-box" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#ffffff;border-radius:14px;width:480px;max-width:95vw;max-height:80vh;overflow:hidden;flex-direction:column;z-index:9999;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+  <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#ffffff;">
     <div style="font-size:15px;font-weight:700;">+ Tambah Karyawan</div>
     <button onclick="closeMod()" style="background:none;border:none;cursor:pointer;font-size:24px;color:var(--text-muted);line-height:1;">&times;</button>
   </div>
-  <div style="padding:12px 16px;border-bottom:1px solid var(--border);">
+  <div style="padding:12px 16px;border-bottom:1px solid var(--border);background:#ffffff;">
     <input type="text" id="sq" placeholder="Cari nama atau NIP..." oninput="doSearch()" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--surface);color:var(--text-main);box-sizing:border-box;">
   </div>
-  <div id="mod-list" style="overflow-y:auto;max-height:360px;background:var(--surface);">
+  <div id="mod-list" style="overflow-y:auto;max-height:360px;background:#ffffff;">
     <div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">Ketik untuk mencari...</div>
   </div>
-  <div style="padding:10px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);text-align:center;">Hanya karyawan aktif</div>
+  <div style="padding:10px 16px;border-top:1px solid var(--border);font-size:11px;color:#9B9A94;text-align:center;background:#ffffff;">Hanya karyawan aktif</div>
 </div>
 
 <script>
