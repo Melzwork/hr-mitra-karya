@@ -183,11 +183,10 @@ function loadSession() {
   document.getElementById('loading-msg').style.display = 'block';
   document.getElementById('empty-msg').style.display = 'none';
   document.getElementById('roster-body').innerHTML = '';
-  document.getElementById('btn-tambah').style.display = 'none';
-  document.getElementById('btn-save').style.display = 'none';
   document.getElementById('btn-unlock').style.display = 'none';
   document.getElementById('locked-banner').style.display = 'none';
   document.getElementById('hapus-th').style.display = '';
+  // Keep tambah+save visible during load — only hide if locked after fetch
 
   fetch(`/absensi/session?date=${d}&shift=${s}`)
     .then(r => r.json())
