@@ -2,14 +2,14 @@
 {% block title %}Shift Karyawan{% endblock %}
 {% block content %}
 <style>
-.tab-btn{padding:10px 20px;font-size:13px;border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:500;}
-.tab-btn.active{color:var(--text-main);border-bottom-color:var(--text-main);font-weight:700;}
+.tab-btn{padding:10px 20px;font-size:13px;border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;color:#6B6A64;font-weight:500;}
+.tab-btn.active{color:#1A1916;border-bottom-color:#1A1916;font-weight:700;}
 .tab-content{display:none;}
 .tab-content.active{display:block;}
-.att-th{padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);background:var(--gray-100);}
-.att-td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;}
+.att-th{padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e8e7e2;background:#F5F4F0;}
+.att-td{padding:10px 14px;border-bottom:1px solid #e8e7e2;font-size:13px;}
 .sitem{padding:12px 16px;cursor:pointer;border-bottom:1px solid #e8e7e2;display:flex;align-items:center;justify-content:space-between;background:#ffffff;}
-.sitem:hover{background:var(--gray-100);}
+.sitem:hover{background:#F5F4F0;}
 .sitem.dis{opacity:.5;cursor:not-allowed;pointer-events:none;}
 </style>
 
@@ -26,7 +26,7 @@
 </div>
 {% endif %}
 
-<div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:20px;">
+<div style="display:flex;border-bottom:2px solid #e8e7e2;margin-bottom:20px;">
   <button class="tab-btn active" onclick="showTab('input',this)">Input Absensi</button>
   <button class="tab-btn" onclick="showTab('rekap',this)">Rekap & Export</button>
   <button class="tab-btn" onclick="showTab('pkhl',this)">Monitor PKHL</button>
@@ -34,19 +34,19 @@
 
 <div id="tab-input" class="tab-content active">
   <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
-    <input type="date" id="att-date" value="{{ today }}" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text-main);">
-    <select id="att-shift" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text-main);">
+    <input type="date" id="att-date" value="{{ today }}" style="padding:8px 12px;border:1px solid #e8e7e2;border-radius:8px;font-size:13px;background:#ffffff;color:#1A1916;">
+    <select id="att-shift" style="padding:8px 12px;border:1px solid #e8e7e2;border-radius:8px;font-size:13px;background:#ffffff;color:#1A1916;">
       <option value="Pagi">🌅 Shift Pagi</option>
       <option value="Malam">🌙 Shift Malam</option>
     </select>
     <button onclick="loadSess()" class="btn btn-outline btn-sm">🔄 Muat</button>
-    <span id="lock-status" style="font-size:12px;color:var(--text-muted);"></span>
+    <span id="lock-status" style="font-size:12px;color:#6B6A64;"></span>
   </div>
   <div class="card">
-    <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+    <div style="padding:14px 20px;border-bottom:1px solid #e8e7e2;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
       <div>
         <div style="font-size:15px;font-weight:700;" id="sess-title">Input Absensi</div>
-        <div style="font-size:11px;color:var(--text-muted);" id="sess-sub">Pilih tanggal dan shift lalu klik Muat</div>
+        <div style="font-size:11px;color:#6B6A64;" id="sess-sub">Pilih tanggal dan shift lalu klik Muat</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
         <button onclick="openMod()" id="btn-add" class="btn btn-outline btn-sm">+ Tambah Karyawan</button>
@@ -68,7 +68,7 @@
         </tr></thead>
         <tbody id="roster"></tbody>
       </table>
-      <div id="empty-st" style="text-align:center;padding:48px;color:var(--text-muted);background:var(--surface);position:relative;z-index:1;">
+      <div id="empty-st" style="text-align:center;padding:48px;color:#6B6A64;background:#ffffff;position:relative;z-index:1;">
         <div style="font-size:36px;margin-bottom:8px;">📋</div>
         <div>Belum ada karyawan.<br><small>Klik "+ Tambah Karyawan" untuk memulai.</small></div>
       </div>
@@ -79,10 +79,10 @@
 <div id="tab-rekap" class="tab-content">
   <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
     <label style="font-size:12px;font-weight:600;">Dari:</label>
-    <input type="date" id="exp-from" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text-main);">
+    <input type="date" id="exp-from" style="padding:8px 12px;border:1px solid #e8e7e2;border-radius:8px;font-size:13px;background:#ffffff;color:#1A1916;">
     <label style="font-size:12px;font-weight:600;">Sampai:</label>
-    <input type="date" id="exp-to" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text-main);">
-    <select id="exp-dept" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text-main);">
+    <input type="date" id="exp-to" style="padding:8px 12px;border:1px solid #e8e7e2;border-radius:8px;font-size:13px;background:#ffffff;color:#1A1916;">
+    <select id="exp-dept" style="padding:8px 12px;border:1px solid #e8e7e2;border-radius:8px;font-size:13px;background:#ffffff;color:#1A1916;">
       <option value="">Semua Departemen</option>
       <option>Finishing</option><option>Dyeing</option><option>Quality Control</option>
       <option>Boiler</option><option>Umum</option><option>Staff</option><option>LAB</option>
@@ -91,7 +91,7 @@
     </select>
     <button onclick="doExp()" style="background:#1D6B3E;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;">⬇ Export Excel</button>
   </div>
-  <div class="card" style="padding:40px;text-align:center;color:var(--text-muted);">
+  <div class="card" style="padding:40px;text-align:center;color:#6B6A64;">
     <div style="font-size:36px;margin-bottom:8px;">📊</div>
     <div style="font-size:14px;font-weight:600;margin-bottom:6px;">Export Rekap Absensi</div>
     <div style="font-size:12px;">Pilih rentang tanggal lalu klik Export Excel.<br>P = Pagi &nbsp;|&nbsp; M = Malam &nbsp;|&nbsp; A = Alpha</div>
@@ -100,9 +100,9 @@
 
 <div id="tab-pkhl" class="tab-content">
   <div class="card">
-    <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+    <div style="padding:14px 20px;border-bottom:1px solid #e8e7e2;display:flex;align-items:center;justify-content:space-between;">
       <div style="font-size:15px;font-weight:700;">Monitor PKHL</div>
-      <div style="font-size:11px;color:var(--text-muted);" id="pkhl-per"></div>
+      <div style="font-size:11px;color:#6B6A64;" id="pkhl-per"></div>
     </div>
     <div style="overflow-x:auto;">
       <table style="width:100%;border-collapse:collapse;">
@@ -111,7 +111,7 @@
           <th class="att-th">Tipe</th><th class="att-th">Hari</th><th class="att-th">Progress</th>
           <th class="att-th" style="text-align:center;">Status</th>
         </tr></thead>
-        <tbody id="pkhl-body"><tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);">Memuat...</td></tr></tbody>
+        <tbody id="pkhl-body"><tr><td colspan="7" style="text-align:center;padding:32px;color:#6B6A64;">Memuat...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -120,17 +120,17 @@
 <!-- Modal -->
 <div id="mod-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;" onclick="closeMod()"></div>
 <div id="mod-box" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#ffffff;border-radius:14px;width:480px;max-width:95vw;max-height:80vh;overflow:hidden;flex-direction:column;z-index:9999;box-shadow:0 20px 60px rgba(0,0,0,.3);">
-  <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#ffffff;">
+  <div style="padding:16px 20px;border-bottom:1px solid #e8e7e2;display:flex;align-items:center;justify-content:space-between;background:#ffffff;">
     <div style="font-size:15px;font-weight:700;">+ Tambah Karyawan</div>
-    <button onclick="closeMod()" style="background:none;border:none;cursor:pointer;font-size:24px;color:var(--text-muted);line-height:1;">&times;</button>
+    <button onclick="closeMod()" style="background:none;border:none;cursor:pointer;font-size:24px;color:#6B6A64;line-height:1;">&times;</button>
   </div>
-  <div style="padding:12px 16px;border-bottom:1px solid var(--border);background:#ffffff;">
-    <input type="text" id="sq" placeholder="Cari nama atau NIP..." oninput="doSearch()" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--surface);color:var(--text-main);box-sizing:border-box;">
+  <div style="padding:12px 16px;border-bottom:1px solid #e8e7e2;background:#ffffff;">
+    <input type="text" id="sq" placeholder="Cari nama atau NIP..." oninput="doSearch()" style="width:100%;padding:9px 12px;border:1.5px solid #e8e7e2;border-radius:8px;font-size:14px;background:#ffffff;color:#1A1916;box-sizing:border-box;">
   </div>
   <div id="mod-list" style="overflow-y:auto;max-height:360px;background:#ffffff;">
-    <div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">Ketik untuk mencari...</div>
+    <div style="text-align:center;padding:32px;color:#6B6A64;font-size:13px;">Ketik untuk mencari...</div>
   </div>
-  <div style="padding:10px 16px;border-top:1px solid var(--border);font-size:11px;color:#9B9A94;text-align:center;background:#ffffff;">Hanya karyawan aktif</div>
+  <div style="padding:10px 16px;border-top:1px solid #e8e7e2;font-size:11px;color:#9B9A94;text-align:center;background:#ffffff;">Hanya karyawan aktif</div>
 </div>
 
 <script>
@@ -190,9 +190,9 @@ function addRow(id,name,emp,dept){
   cnt++;
   var tr=document.createElement('tr');
   tr.setAttribute('data-id',id);
-  tr.innerHTML='<td class="att-td" style="color:var(--text-muted);font-size:11px;">'+cnt+'</td>'+
+  tr.innerHTML='<td class="att-td" style="color:#6B6A64;font-size:11px;">'+cnt+'</td>'+
     '<td class="att-td" style="font-weight:600;">'+name+'</td>'+
-    '<td class="att-td" style="color:var(--text-muted);font-size:12px;">'+emp+'</td>'+
+    '<td class="att-td" style="color:#6B6A64;font-size:12px;">'+emp+'</td>'+
     '<td class="att-td">'+dept+'</td>'+
     '<td class="att-td" style="text-align:center;"><button onclick="delRow(this)" style="background:none;border:none;cursor:pointer;font-size:18px;">🚫</button></td>';
   document.getElementById('roster').appendChild(tr);
@@ -241,7 +241,7 @@ function openMod(){
   document.getElementById('mod-box').style.flexDirection='column';
   document.getElementById('empty-st').style.visibility='hidden';
   document.getElementById('sq').value='';
-  document.getElementById('mod-list').innerHTML='<div style="padding:40px;text-align:center;color:var(--text-muted);font-size:13px;">🔍 Ketik nama atau NIP untuk mencari...</div>';
+  document.getElementById('mod-list').innerHTML='<div style="padding:40px;text-align:center;color:#6B6A64;font-size:13px;">🔍 Ketik nama atau NIP untuk mencari...</div>';
   setTimeout(function(){document.getElementById('sq').focus();},100);
 }
 function closeMod(){
@@ -256,7 +256,7 @@ function closeMod(){
 function doSearch(){
   clearTimeout(stimer);
   var q=document.getElementById('sq').value.trim();
-  if(!q){document.getElementById('mod-list').innerHTML='<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">Ketik untuk mencari...</div>';return;}
+  if(!q){document.getElementById('mod-list').innerHTML='<div style="text-align:center;padding:32px;color:#6B6A64;font-size:13px;">Ketik untuk mencari...</div>';return;}
   stimer=setTimeout(function(){
     fetch('/absensi/staff-list?q='+encodeURIComponent(q))
       .then(function(r){return r.json();})
@@ -267,7 +267,7 @@ function doSearch(){
 
 function renderList(list){
   var ex=getIds();
-  if(!list.length){document.getElementById('mod-list').innerHTML='<div style="text-align:center;padding:32px;color:var(--text-muted);">Tidak ditemukan.</div>';return;}
+  if(!list.length){document.getElementById('mod-list').innerHTML='<div style="text-align:center;padding:32px;color:#6B6A64;">Tidak ditemukan.</div>';return;}
   var h='';
   list.forEach(function(s){
     var ain=ex.indexOf(s.id)!==-1;
@@ -275,12 +275,12 @@ function renderList(list){
     var wrn=s.is_hl&&s.hl_days>=18&&!blk;
     var dis=ain||blk;
     var bg=blk?'#FFF5F5':wrn?'#FFFDE7':'';
-    var rt=ain?'<span style="font-size:11px;color:var(--text-muted);">✓ Ada</span>':blk?'<span style="font-size:11px;color:#C0392B;font-weight:700;">🚫 '+s.hl_days+'/20</span>':wrn?'<span style="font-size:11px;color:#E8A020;font-weight:700;">⚠ '+s.hl_days+'</span>':'<span style="font-size:18px;color:#1D6B3E;">+</span>';
+    var rt=ain?'<span style="font-size:11px;color:#6B6A64;">✓ Ada</span>':blk?'<span style="font-size:11px;color:#C0392B;font-weight:700;">🚫 '+s.hl_days+'/20</span>':wrn?'<span style="font-size:11px;color:#E8A020;font-weight:700;">⚠ '+s.hl_days+'</span>':'<span style="font-size:18px;color:#1D6B3E;">+</span>';
     var tb=s.is_hl?'<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:#F3E5F5;color:#6A1B9A;font-weight:600;">'+s.staff_type+'</span>':'<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:#E3F2FD;color:#1565C0;font-weight:600;">PKWT</span>';
     var oc=dis?'':'onclick="pick('+s.id+',\''+s.full_name.replace(/'/g,"\\'")+'|\'+s.emp_id+\'|\'+s.department+\')"';
     h+='<div class="sitem'+(dis?' dis':'')+'" onclick="'+(dis?'':'pick('+s.id+',\''+s.full_name.replace(/'/g,"\\'")+'\',\''+s.emp_id+'\',\''+s.department+'\')')+'" style="background:'+bg+';">'+
       '<div><div style="font-weight:600;font-size:13px;">'+s.full_name+' '+tb+'</div>'+
-      '<div style="font-size:11px;color:var(--text-muted);">'+s.emp_id+' · '+s.department+'</div></div>'+rt+'</div>';
+      '<div style="font-size:11px;color:#6B6A64;">'+s.emp_id+' · '+s.department+'</div></div>'+rt+'</div>';
   });
   document.getElementById('mod-list').innerHTML=h;
 }
@@ -304,7 +304,7 @@ function loadPkhl(){
     .then(function(data){
       document.getElementById('pkhl-per').textContent='Periode: '+data.period_start+' s/d '+data.period_end;
       var body=document.getElementById('pkhl-body');
-      if(!data.workers||!data.workers.length){body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);">Tidak ada karyawan HL aktif.</td></tr>';return;}
+      if(!data.workers||!data.workers.length){body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:32px;color:#6B6A64;">Tidak ada karyawan HL aktif.</td></tr>';return;}
       var h='';
       data.workers.forEach(function(w){
         var bg=w.status==='blocked'?'#FFF5F5':w.status==='warning'?'#FFFDE7':'';
@@ -313,7 +313,7 @@ function loadPkhl(){
           w.status==='warning'?'<span style="background:#FFF8E1;color:#E8A020;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;">⚠ Mendekati Batas</span>':
           '<span style="background:#E8F5EE;color:#1D6B3E;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;">✓ Normal</span>';
         h+='<tr style="background:'+bg+';"><td class="att-td" style="font-weight:600;">'+w.full_name+'</td>'+
-          '<td class="att-td" style="color:var(--text-muted);font-size:12px;">'+w.emp_id+'</td>'+
+          '<td class="att-td" style="color:#6B6A64;font-size:12px;">'+w.emp_id+'</td>'+
           '<td class="att-td">'+w.department+'</td>'+
           '<td class="att-td"><span style="font-size:11px;padding:2px 7px;border-radius:4px;background:#F3E5F5;color:#6A1B9A;font-weight:600;">'+w.staff_type+'</span></td>'+
           '<td class="att-td" style="font-weight:700;color:'+dc+';">'+w.days+' / 20</td>'+
