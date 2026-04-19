@@ -234,8 +234,8 @@ textarea { resize: vertical; min-height: 80px; }
     <a href="{{ url_for('staff_list') }}" class="nav-item {% if request.endpoint in ['staff_list','view_staff','add_staff'] %}active{% endif %}">
       <span class="icon">◫</span> Karyawan / Staff
     </a>
-    {% if session.role in ('hr_head','owner') %}
     <div class="nav-section">Manajemen</div>
+    {% if session.role in ('hr_head','owner') %}
     <a href="{{ url_for('sponsors') }}" class="nav-item {% if request.endpoint=='sponsors' %}active{% endif %}">
       <span class="icon">🤝</span> Sponsor
     </a>
@@ -250,9 +250,11 @@ textarea { resize: vertical; min-height: 80px; }
       <span class="icon">🔑</span> Kunci Jawaban Tes
     </a>
     {% endif %}
+    {% if session.role in ('hr_head','owner','hr_staff') %}
     <a href="{{ url_for('absensi') }}" class="nav-item {% if request.endpoint in ['absensi'] %}active{% endif %}">
       <span class="icon">📅</span> Shift Karyawan
     </a>
+    {% endif %}
     {% if session.role == 'owner' %}
     <div class="nav-section">Owner</div>
     <a href="{{ url_for('audit_log') }}" class="nav-item {% if request.endpoint=='audit_log' %}active{% endif %}">
