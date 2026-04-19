@@ -1599,6 +1599,28 @@ def init_test_tables():
             except: pass
             try: db.execute("ALTER TABLE test_codes ADD COLUMN questions_json TEXT")
             except: pass
+            # Attendance tables
+            try:
+                db.execute("""CREATE TABLE IF NOT EXISTS attendance_sessions (
+                    id SERIAL PRIMARY KEY,
+                    session_date VARCHAR(10) NOT NULL,
+                    shift VARCHAR(10) NOT NULL,
+                    is_locked INTEGER DEFAULT 0,
+                    locked_by VARCHAR(100),
+                    locked_at VARCHAR(30),
+                    created_by VARCHAR(100),
+                    created_at VARCHAR(30),
+                    UNIQUE(session_date, shift))""")
+            except: pass
+            try:
+                db.execute("""CREATE TABLE IF NOT EXISTS attendance_records (
+                    id SERIAL PRIMARY KEY,
+                    session_id INTEGER NOT NULL,
+                    staff_id INTEGER NOT NULL,
+                    created_by VARCHAR(100),
+                    created_at VARCHAR(30),
+                    UNIQUE(session_id, staff_id))""")
+            except: pass
 
 # ── Helper: generate unique code ───────────────────────────────────────────────
 
@@ -2649,3 +2671,446 @@ if __name__ == '__main__':
     print("  HR Staff    : hrstaff / staff123")
     print("="*52+"\n")
     app.run(debug=False,host='0.0.0.0',port=5001)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ATTENDANCE MODULE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Attendance tables initialized inside init_db()
+
+def get_pkhl_days(staff_id, period_start, period_end):
+    """Count attendance days for HL worker in given period."""
+    with get_db() as db:
+        result = db.fetchval("""
+            SELECT COUNT(DISTINCT ar.session_id)
+            FROM attendance_records ar
+            JOIN attendance_sessions s ON s.id = ar.session_id
+            WHERE ar.staff_id = ?
+            AND s.session_date >= ? AND s.session_date <= ?
+        """, (staff_id, period_start, period_end))
+    return result or 0
+
+def get_current_pkhl_period():
+    """Return (start, end) of current 21->20 payroll period."""
+    today = date.today()
+    if today.day >= 21:
+        start = today.replace(day=21)
+        # end is 20th of next month
+        if today.month == 12:
+            end = date(today.year + 1, 1, 20)
+        else:
+            end = date(today.year, today.month + 1, 20)
+    else:
+        # We're in the 1-20 range, period started on 21st of previous month
+        if today.month == 1:
+            start = date(today.year - 1, 12, 21)
+        else:
+            start = date(today.year, today.month - 1, 21)
+        end = today.replace(day=20)
+    return start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')
+
+def is_session_locked(session_date_str):
+    """Check if a session date is past H+1 deadline."""
+    try:
+        session_date = datetime.strptime(session_date_str, '%Y-%m-%d').date()
+        today = now_wib().date()
+        return (today - session_date).days > 1
+    except:
+        return True
+
+@app.route('/absensi')
+@login_required
+def absensi():
+    """Main attendance page."""
+    today_str = now_wib().strftime('%Y-%m-%d')
+    period_start, period_end = get_current_pkhl_period()
+
+    # Get HL workers near/at limit for alerts
+    hl_alerts = []
+    with get_db() as db:
+        hl_staff = db.fetchall("""
+            SELECT s.id, s.full_name, s.emp_id, ep.staff_type
+            FROM staff s
+            JOIN employment_periods ep ON ep.staff_id = s.id AND ep.status = 'AKTIF'
+            WHERE s.status = 'AKTIF' AND ep.staff_type IN ('HL-Lamaran', 'HL-Outsource')
+        """)
+    for w in (hl_staff or []):
+        days = get_pkhl_days(w['id'], period_start, period_end)
+        if days >= 18:
+            hl_alerts.append({'name': w['full_name'], 'emp_id': w['emp_id'], 'days': days, 'blocked': days >= 20})
+
+    return render_template('absensi.html',
+                           today=today_str,
+                           hl_alerts=hl_alerts,
+                           period_start=period_start,
+                           period_end=period_end,
+                           is_head_or_owner=is_head_or_owner(),
+                           is_owner=is_owner())
+
+@app.route('/absensi/session')
+@login_required
+def absensi_session():
+    """Get or create a session for a date+shift, return roster."""
+    session_date = request.args.get('date', now_wib().strftime('%Y-%m-%d'))
+    shift = request.args.get('shift', 'Pagi')
+    locked = is_session_locked(session_date)
+
+    # Check manual lock by owner
+    with get_db() as db:
+        sess = db.fetchone("SELECT * FROM attendance_sessions WHERE session_date=? AND shift=?",
+                           (session_date, shift))
+        records = []
+        if sess:
+            records = db.fetchall("""
+                SELECT ar.id, s.full_name, s.emp_id, s.department, ar.staff_id
+                FROM attendance_records ar
+                JOIN staff s ON s.id = ar.staff_id
+                WHERE ar.session_id = ?
+                ORDER BY s.full_name
+            """, (sess['id'],))
+
+    # Manual lock override
+    manual_locked = sess and sess['is_locked'] == 1
+    if manual_locked and not is_owner():
+        locked = True
+
+    return jsonify({
+        'session_id': sess['id'] if sess else None,
+        'records': [dict(r) for r in records],
+        'locked': locked,
+        'manual_locked': manual_locked,
+        'can_unlock': is_owner()
+    })
+
+@app.route('/absensi/save', methods=['POST'])
+@login_required
+def absensi_save():
+    """Save attendance roster for a session."""
+    data = request.json
+    session_date = data.get('date')
+    shift = data.get('shift')
+    staff_ids = data.get('staff_ids', [])
+
+    if is_session_locked(session_date) and not is_owner():
+        return jsonify({'ok': False, 'error': 'Input terkunci — melebihi batas H+1.'})
+
+    period_start, period_end = get_current_pkhl_period()
+    now_str = now_wib().strftime('%Y-%m-%d %H:%M:%S')
+
+    with get_db() as db:
+        # Upsert session
+        sess = db.fetchone("SELECT id FROM attendance_sessions WHERE session_date=? AND shift=?",
+                           (session_date, shift))
+        if sess:
+            session_id = sess['id']
+        else:
+            db.execute("""INSERT INTO attendance_sessions (session_date, shift, created_by, created_at)
+                         VALUES (?,?,?,?)""", (session_date, shift, session.get('user'), now_str))
+            sess = db.fetchone("SELECT id FROM attendance_sessions WHERE session_date=? AND shift=?",
+                               (session_date, shift))
+            session_id = sess['id']
+
+        # Check HL workers for 20-day limit
+        blocked = []
+        for sid in staff_ids:
+            ep = db.fetchone("""SELECT ep.staff_type FROM employment_periods ep
+                               WHERE ep.staff_id=? AND ep.status='AKTIF'""", (sid,))
+            if ep and ep['staff_type'] in ('HL-Lamaran', 'HL-Outsource'):
+                days = get_pkhl_days(sid, period_start, period_end)
+                if days >= 20:
+                    s_info = db.fetchone("SELECT full_name FROM staff WHERE id=?", (sid,))
+                    blocked.append(s_info['full_name'] if s_info else str(sid))
+
+        if blocked:
+            return jsonify({'ok': False, 'error': f"Karyawan berikut sudah mencapai 20 hari: {', '.join(blocked)}"})
+
+        # Clear and re-insert records
+        db.execute("DELETE FROM attendance_records WHERE session_id=?", (session_id,))
+        for sid in staff_ids:
+            db.execute("""INSERT INTO attendance_records (session_id, staff_id, created_by, created_at)
+                         VALUES (?,?,?,?)""", (session_id, sid, session.get('user'), now_str))
+        db.commit()
+
+    log_audit('ABSENSI_SAVE', 'attendance_sessions', session_id,
+              f"{session_date} {shift} — {len(staff_ids)} karyawan")
+    return jsonify({'ok': True})
+
+@app.route('/absensi/unlock', methods=['POST'])
+@login_required
+def absensi_unlock():
+    """Owner unlocks a locked session."""
+    if not is_owner():
+        return jsonify({'ok': False, 'error': 'Hanya Owner yang dapat membuka kunci.'})
+    data = request.json
+    session_date = data.get('date')
+    shift = data.get('shift')
+    now_str = now_wib().strftime('%Y-%m-%d %H:%M:%S')
+    with get_db() as db:
+        sess = db.fetchone("SELECT id FROM attendance_sessions WHERE session_date=? AND shift=?",
+                           (session_date, shift))
+        if not sess:
+            db.execute("""INSERT INTO attendance_sessions (session_date, shift, is_locked, created_by, created_at)
+                         VALUES (?,?,0,?,?)""", (session_date, shift, session.get('user'), now_str))
+        else:
+            db.execute("UPDATE attendance_sessions SET is_locked=0, locked_by=?, locked_at=? WHERE id=?",
+                       (session.get('user'), now_str, sess['id']))
+        db.commit()
+    log_audit('ABSENSI_UNLOCK', 'attendance_sessions', None, f"Unlock: {session_date} {shift}")
+    return jsonify({'ok': True})
+
+@app.route('/absensi/staff-list')
+@login_required
+def absensi_staff_list():
+    """Return active staff for adding to attendance."""
+    q = request.args.get('q', '').strip()
+    with get_db() as db:
+        if q:
+            staff = db.fetchall("""
+                SELECT s.id, s.full_name, s.emp_id, s.department, ep.staff_type
+                FROM staff s
+                JOIN employment_periods ep ON ep.staff_id = s.id AND ep.status = 'AKTIF'
+                WHERE s.status = 'AKTIF'
+                AND (UPPER(s.full_name) LIKE UPPER(?) OR s.emp_id LIKE ?)
+                ORDER BY s.full_name LIMIT 30
+            """, (f'%{q}%', f'%{q}%'))
+        else:
+            staff = db.fetchall("""
+                SELECT s.id, s.full_name, s.emp_id, s.department, ep.staff_type
+                FROM staff s
+                JOIN employment_periods ep ON ep.staff_id = s.id AND ep.status = 'AKTIF'
+                WHERE s.status = 'AKTIF'
+                ORDER BY s.full_name LIMIT 50
+            """)
+    period_start, period_end = get_current_pkhl_period()
+    result = []
+    for s in (staff or []):
+        days = 0
+        is_hl = s['staff_type'] in ('HL-Lamaran', 'HL-Outsource')
+        if is_hl:
+            days = get_pkhl_days(s['id'], period_start, period_end)
+        result.append({
+            'id': s['id'], 'full_name': s['full_name'], 'emp_id': s['emp_id'],
+            'department': s['department'], 'staff_type': s['staff_type'],
+            'is_hl': is_hl, 'hl_days': days, 'hl_blocked': days >= 20
+        })
+    return jsonify(result)
+
+@app.route('/absensi/export')
+@login_required
+def absensi_export():
+    """Export attendance to Excel."""
+    from openpyxl import Workbook
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    import io
+
+    date_from = request.args.get('from', '')
+    date_to = request.args.get('to', '')
+    dept = request.args.get('dept', '')
+
+    if not date_from or not date_to:
+        flash('Pilih rentang tanggal untuk export.', 'error')
+        return redirect(url_for('absensi'))
+
+    # Get all dates in range
+    try:
+        d_from = datetime.strptime(date_from, '%Y-%m-%d').date()
+        d_to = datetime.strptime(date_to, '%Y-%m-%d').date()
+    except:
+        flash('Format tanggal tidak valid.', 'error')
+        return redirect(url_for('absensi'))
+
+    dates = []
+    cur = d_from
+    while cur <= d_to:
+        dates.append(cur.strftime('%Y-%m-%d'))
+        cur += timedelta(days=1)
+
+    # Get all active staff in period
+    with get_db() as db:
+        if dept:
+            staff_list = db.fetchall("""
+                SELECT s.id, s.full_name, s.emp_id, s.department, ep.staff_type
+                FROM staff s JOIN employment_periods ep ON ep.staff_id=s.id AND ep.status='AKTIF'
+                WHERE s.status='AKTIF' AND s.department=?
+                ORDER BY s.department, s.full_name
+            """, (dept,))
+        else:
+            staff_list = db.fetchall("""
+                SELECT s.id, s.full_name, s.emp_id, s.department, ep.staff_type
+                FROM staff s JOIN employment_periods ep ON ep.staff_id=s.id AND ep.status='AKTIF'
+                WHERE s.status='AKTIF'
+                ORDER BY s.department, s.full_name
+            """)
+
+        # Get all sessions and records in range
+        sessions = db.fetchall("""
+            SELECT id, session_date, shift FROM attendance_sessions
+            WHERE session_date >= ? AND session_date <= ?
+        """, (date_from, date_to))
+
+        # Build lookup: {(date, shift): set(staff_id)}
+        attendance_map = {}
+        for sess in (sessions or []):
+            key = (sess['session_date'], sess['shift'])
+            records = db.fetchall("SELECT staff_id FROM attendance_records WHERE session_id=?", (sess['id'],))
+            attendance_map[key] = {r['staff_id'] for r in (records or [])}
+
+    # Build Excel
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Absensi"
+
+    # Styles
+    hdr_fill = PatternFill("solid", fgColor="1A2535")
+    hdr_font = Font(color="FFFFFF", bold=True, size=9)
+    pagi_fill = PatternFill("solid", fgColor="FFF8E1")
+    malam_fill = PatternFill("solid", fgColor="EDE7F6")
+    alpha_fill = PatternFill("solid", fgColor="FAEAEA")
+    ok_fill = PatternFill("solid", fgColor="E8F5EE")
+    warn_fill = PatternFill("solid", fgColor="FFF8E1")
+    block_fill = PatternFill("solid", fgColor="FAEAEA")
+    center = Alignment(horizontal='center', vertical='center')
+    thin = Border(
+        left=Side(style='thin', color='DDDDDD'),
+        right=Side(style='thin', color='DDDDDD'),
+        top=Side(style='thin', color='DDDDDD'),
+        bottom=Side(style='thin', color='DDDDDD')
+    )
+
+    # Header row 1 — title
+    ws.merge_cells(f'A1:B1')
+    ws['A1'] = f"Rekap Absensi: {date_from} s/d {date_to}"
+    ws['A1'].font = Font(bold=True, size=12)
+    ws.row_dimensions[1].height = 20
+
+    # Header row 2 — columns
+    row2_cols = ['No', 'Nama Karyawan', 'NIP', 'Departemen', 'Tipe']
+    # Add date columns (each date = 2 cols: Pagi, Malam)
+    col = 6
+    date_col_map = {}
+    for d in dates:
+        date_col_map[d] = col
+        col += 2
+    # Then totals
+    total_col = col
+
+    # Write header
+    ws.cell(2, 1, 'No').fill = hdr_fill
+    ws.cell(2, 1).font = hdr_font
+    ws.cell(2, 2, 'Nama Karyawan').fill = hdr_fill
+    ws.cell(2, 2).font = hdr_font
+    ws.cell(2, 3, 'NIP').fill = hdr_fill
+    ws.cell(2, 3).font = hdr_font
+    ws.cell(2, 4, 'Departemen').fill = hdr_fill
+    ws.cell(2, 4).font = hdr_font
+    ws.cell(2, 5, 'Tipe').fill = hdr_fill
+    ws.cell(2, 5).font = hdr_font
+
+    for d, dc in date_col_map.items():
+        d_obj = datetime.strptime(d, '%Y-%m-%d')
+        label = d_obj.strftime('%d/%m')
+        ws.merge_cells(start_row=2, start_column=dc, end_row=2, end_column=dc+1)
+        c = ws.cell(2, dc, label)
+        c.fill = hdr_fill; c.font = hdr_font; c.alignment = center
+        ws.cell(3, dc, 'P').fill = PatternFill("solid", fgColor="FFD54F")
+        ws.cell(3, dc).font = Font(bold=True, size=8, color="7B5800")
+        ws.cell(3, dc).alignment = center
+        ws.cell(3, dc+1, 'M').fill = PatternFill("solid", fgColor="CE93D8")
+        ws.cell(3, dc+1).font = Font(bold=True, size=8, color="4A148C")
+        ws.cell(3, dc+1).alignment = center
+
+    # Total headers
+    for i, lbl in enumerate(['Total P', 'Total M', 'Total Hadir', 'Alpha']):
+        c = ws.cell(2, total_col+i, lbl)
+        c.fill = hdr_fill; c.font = hdr_font; c.alignment = center
+        ws.merge_cells(start_row=2, start_column=total_col+i, end_row=3, end_column=total_col+i)
+
+    period_start, period_end = get_current_pkhl_period()
+
+    # Data rows
+    for idx, s in enumerate(staff_list or []):
+        r = idx + 4  # start from row 4
+        is_hl = s['staff_type'] in ('HL-Lamaran', 'HL-Outsource')
+        hl_days = get_pkhl_days(s['id'], date_from, date_to) if is_hl else 0
+
+        ws.cell(r, 1, idx+1).alignment = center
+        ws.cell(r, 2, s['full_name'])
+        ws.cell(r, 2).font = Font(bold=True, size=9)
+        ws.cell(r, 3, s['emp_id']).alignment = center
+        ws.cell(r, 4, s['department'])
+        ws.cell(r, 5, s['staff_type'])
+        ws.cell(r, 5).font = Font(size=8)
+
+        total_p = total_m = total_alpha = 0
+        for d, dc in date_col_map.items():
+            hadir_p = s['id'] in attendance_map.get((d, 'Pagi'), set())
+            hadir_m = s['id'] in attendance_map.get((d, 'Malam'), set())
+            p_cell = ws.cell(r, dc, 'P' if hadir_p else 'A')
+            m_cell = ws.cell(r, dc+1, 'M' if hadir_m else 'A')
+            p_cell.alignment = center; m_cell.alignment = center
+            p_cell.font = Font(size=9, bold=hadir_p, color='7B5800' if hadir_p else '8B1F1F')
+            m_cell.font = Font(size=9, bold=hadir_m, color='4A148C' if hadir_m else '8B1F1F')
+            if hadir_p: p_cell.fill = pagi_fill; total_p += 1
+            else: p_cell.fill = alpha_fill; total_alpha += 1
+            if hadir_m: m_cell.fill = malam_fill; total_m += 1
+            else: m_cell.fill = alpha_fill; total_alpha += 1
+
+        total_hadir = total_p + total_m
+        ws.cell(r, total_col, total_p).alignment = center
+        ws.cell(r, total_col+1, total_m).alignment = center
+        tc = ws.cell(r, total_col+2, total_hadir)
+        tc.alignment = center; tc.font = Font(bold=True, size=9)
+        if is_hl:
+            if hl_days >= 20: tc.fill = block_fill; tc.font = Font(bold=True, size=9, color='8B1F1F')
+            elif hl_days >= 18: tc.fill = warn_fill; tc.font = Font(bold=True, size=9, color='7B5800')
+            else: tc.fill = ok_fill
+        ws.cell(r, total_col+3, total_alpha).alignment = center
+
+        # Apply borders
+        for c in range(1, total_col+4):
+            ws.cell(r, c).border = thin
+
+    # Column widths
+    ws.column_dimensions['A'].width = 4
+    ws.column_dimensions['B'].width = 22
+    ws.column_dimensions['C'].width = 8
+    ws.column_dimensions['D'].width = 14
+    ws.column_dimensions['E'].width = 12
+    for d, dc in date_col_map.items():
+        col_letter = ws.cell(1, dc).column_letter
+        col_letter2 = ws.cell(1, dc+1).column_letter
+        ws.column_dimensions[col_letter].width = 4
+        ws.column_dimensions[col_letter2].width = 4
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"Absensi_{date_from}_sd_{date_to}.xlsx"
+    from flask import send_file
+    return send_file(buf, as_attachment=True, download_name=filename,
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+@app.route('/absensi/monitor')
+@login_required
+def absensi_monitor():
+    """PKHL monitor data."""
+    period_start, period_end = get_current_pkhl_period()
+    with get_db() as db:
+        hl_staff = db.fetchall("""
+            SELECT s.id, s.full_name, s.emp_id, s.department, ep.staff_type
+            FROM staff s
+            JOIN employment_periods ep ON ep.staff_id=s.id AND ep.status='AKTIF'
+            WHERE s.status='AKTIF' AND ep.staff_type IN ('HL-Lamaran','HL-Outsource')
+            ORDER BY s.full_name
+        """)
+    result = []
+    for w in (hl_staff or []):
+        days = get_pkhl_days(w['id'], period_start, period_end)
+        result.append({
+            'id': w['id'], 'full_name': w['full_name'], 'emp_id': w['emp_id'],
+            'department': w['department'], 'staff_type': w['staff_type'],
+            'days': days, 'pct': min(100, int(days/20*100)),
+            'status': 'blocked' if days >= 20 else ('warning' if days >= 18 else 'ok')
+        })
+    result.sort(key=lambda x: -x['days'])
+    return jsonify({'workers': result, 'period_start': period_start, 'period_end': period_end})
