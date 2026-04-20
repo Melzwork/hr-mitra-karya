@@ -582,6 +582,10 @@ def dashboard():
 @app.route('/staff')
 @login_required
 def staff_list():
+    # HR Staff cannot filter by Tidak Aktif or Semua
+    if session.get('role') == 'hr_staff' and request.args.get('status','AKTIF') in ('TIDAK_AKTIF',''):
+        from flask import redirect
+        return redirect(url_for('staff_list'))
     search = request.args.get('q','')
     dept   = request.args.get('dept','')
     status = request.args.get('status','AKTIF')
