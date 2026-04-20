@@ -605,7 +605,8 @@ def staff_list():
         q += " ORDER BY s.full_name"
         staff = db.fetchall(q,params)
     return render_template('staff_list.html', staff=staff, search=search, dept=dept,
-                          status=status, depts=list(DEPARTMENTS_POSITIONS.keys()))
+                          status=status, depts=list(DEPARTMENTS_POSITIONS.keys()),
+                          is_head_or_owner=is_head_or_owner(), is_owner=is_owner())
 
 @app.route('/staff/add', methods=['GET','POST'])
 @login_required

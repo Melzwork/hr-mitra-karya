@@ -12,7 +12,7 @@
     </select>
     <select name="status" style="width:140px;">
       <option value="AKTIF" {{ 'selected' if status=='AKTIF' }}>Aktif</option>
-      {% if session.role in ('hr_head','owner') %}
+      {% if is_head_or_owner %}
       <option value="TIDAK_AKTIF" {{ 'selected' if status=='TIDAK_AKTIF' }}>Tidak Aktif</option>
       <option value="" {{ 'selected' if status=='' }}>Semua</option>
       {% endif %}
