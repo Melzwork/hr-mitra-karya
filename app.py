@@ -34,7 +34,7 @@ def datestr_filter(value):
         return str(value)
 DEPARTMENTS_POSITIONS = {
     "Finishing": ["Padder Dryer", "Centrifugal & Scutcher", "Calendar & Compactor", "Setting"],
-    "Persiapan Kain": ["Operator Mesin"],
+    "Persiapan Kain": ["Persiapan Kain"],
     "Dyeing": ["Dyeing"],
     "Quality Control": ["Quality Control (QC)"],
     "Boiler": ["Boiler"],
@@ -1439,6 +1439,7 @@ LOGIC_QUESTIONS = {
 
 POSITION_TIER = {
     'Operator Mesin':  'operator',
+    'Persiapan Kain':  'operator',
     'Tukang Panggul':  'operator',
     'Security':        'operator',
     'Mekanik':         'operator',
