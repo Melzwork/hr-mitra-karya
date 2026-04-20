@@ -251,7 +251,7 @@ textarea{resize:vertical;min-height:60px}
 
     <!-- SUSUNAN KELUARGA MENIKAH -->
     <div class="section">
-      <div class="section-header">3. Susunan Keluarga (Jika Sudah Menikah — termasuk diri sendiri) <span id="menikah-required-note" style="display:none;color:#C0392B;font-size:11px">— Wajib isi jika status kawin</span></div>
+      <div class="section-header">3. Susunan Keluarga (Termasuk Diri Sendiri — <strong>wajib isi minimal baris pertama</strong>) <span id="menikah-required-note" style="display:none;color:#C0392B;font-size:11px">— Wajib isi lengkap jika status kawin</span></div>
       <div class="section-body">
         <table class="table-section">
           <thead><tr><th>Hubungan</th><th>Nama</th><th>L/P</th><th>Usia</th><th>Pendidikan</th><th>Pekerjaan</th></tr></thead>
@@ -259,18 +259,18 @@ textarea{resize:vertical;min-height:60px}
             {% for i in range(7) %}
             <tr>
               <td>
-                <select name="kelm_hubungan_{{ i }}">
+                <select name="kelm_hubungan_{{ i }}" {{ 'required' if i == 0 else '' }}>
                   <option value="">— Pilih —</option>
-                  <option>Diri Sendiri</option>
+                  <option {{ 'selected' if i == 0 else '' }}>Diri Sendiri</option>
                   <option>Suami</option>
                   <option>Istri</option>
                   <option>Anak</option>
                   <option>Lainnya</option>
                 </select>
               </td>
-              <td><input type="text" name="kelm_nama_{{ i }}" placeholder="Nama"></td>
-              <td><select name="kelm_lp_{{ i }}"><option value="">-</option><option>L</option><option>P</option></select></td>
-              <td><input type="number" name="kelm_usia_{{ i }}" placeholder="Usia" style="width:70px"></td>
+              <td><input type="text" name="kelm_nama_{{ i }}" placeholder="Nama" {{ 'required' if i == 0 else '' }} {{ 'id=kelm_nama_0' if i == 0 else '' }}></td>
+              <td><select name="kelm_lp_{{ i }}" {{ 'required' if i == 0 else '' }}><option value="">-</option><option>L</option><option>P</option></select></td>
+              <td><input type="number" name="kelm_usia_{{ i }}" placeholder="Usia" style="width:70px" {{ 'required' if i == 0 else '' }}></td>
               <td><input type="text" name="kelm_pendidikan_{{ i }}" placeholder="SMA/S1..."></td>
               <td><input type="text" name="kelm_pekerjaan_{{ i }}" placeholder="Pekerjaan"></td>
             </tr>
@@ -510,11 +510,10 @@ function formatRupiah(el) {
 function checkKawin() {
   var status = document.querySelector('select[name="status_perkawinan"]');
   var note = document.getElementById('menikah-required-note');
-  var firstNama = document.getElementById('kelm_nama_0');
   if (!status) return;
   var isKawin = status.value === 'Kawin';
   if (note) note.style.display = isKawin ? 'inline' : 'none';
-  if (firstNama) firstNama.required = isKawin;
+  // Row 0 is always required regardless of marital status
 }
 document.addEventListener('DOMContentLoaded', function() {
   var statusEl = document.querySelector('select[name="status_perkawinan"]');
