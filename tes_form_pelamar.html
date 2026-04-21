@@ -72,7 +72,7 @@ textarea{resize:vertical;min-height:60px}
   {% if error %}<div class="error-bar">{{ error }}</div>{% endif %}
   <div class="posisi-badge">Posisi: {{ posisi }}</div>
 
-  <form method="POST" action="/tes/form-pelamar">
+  <form method="POST" action="/tes/form-pelamar" onsubmit="return validateTables() && validateSosmed() && checkDeklarasiName()">
 
     <!-- DATA PRIBADI -->
     <div class="section">
@@ -488,7 +488,7 @@ textarea{resize:vertical;min-height:60px}
             </div>
           </div>
         </div>
-        <button type="submit" class="btn-submit" style="margin-top:16px" onclick="return validateTables() && validateSosmed() && checkDeklarasiName()">Simpan Data & Lanjutkan ke Tes →</button>
+        <button type="submit" class="btn-submit" style="margin-top:16px">Simpan Data & Lanjutkan ke Tes →</button>
       </div>
     </div>
 
