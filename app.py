@@ -2739,8 +2739,9 @@ def get_current_pkhl_period():
     return start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')
 
 def is_session_locked(session_date_str, sess=None):
-    """Check if a session date is past H+1 deadline.
-    If Owner has explicitly unlocked (is_locked=0 with locked_by set), keep open.
+    """Check if session is past H+1 deadline.
+    If Owner unlocked, stays open for 48 hours from unlock time.
+    If manually re-locked (is_locked=1), always locked.
     """
     try:
         session_date = datetime.strptime(session_date_str, '%Y-%m-%d').date()
@@ -2748,9 +2749,21 @@ def is_session_locked(session_date_str, sess=None):
         past_deadline = (today - session_date).days > 1
         if not past_deadline:
             return False  # within H+1, always open
-        # Past H+1 — check if Owner explicitly unlocked
-        if sess and sess.get('is_locked') == 0 and sess.get('locked_by'):
-            return False  # Owner unlocked — stays open until Owner re-locks
+        # Past H+1 — check if Owner unlocked within 48 hours
+        if sess:
+            try:
+                is_locked_val = sess.get('is_locked') if hasattr(sess,'get') else sess['is_locked']
+                locked_at_val = sess.get('locked_at') if hasattr(sess,'get') else sess['locked_at']
+                locked_by_val = sess.get('locked_by') if hasattr(sess,'get') else sess['locked_by']
+                if is_locked_val == 1:
+                    return True  # manually re-locked by Owner
+                if is_locked_val == 0 and locked_by_val and locked_at_val:
+                    unlocked_at = datetime.strptime(str(locked_at_val)[:19], '%Y-%m-%d %H:%M:%S')
+                    hours_open = (now_wib() - unlocked_at).total_seconds() / 3600
+                    if hours_open <= 48:
+                        return False  # within 48hr window
+            except:
+                pass
         return True
     except:
         return True
@@ -2782,7 +2795,8 @@ def absensi():
                            period_start=period_start,
                            period_end=period_end,
                            is_head_or_owner=is_head_or_owner(),
-                           is_owner=is_owner())
+                           is_owner=is_owner(),
+                           user_role=session.get('role',''))
 
 @app.route('/absensi/session')
 @login_required
@@ -2816,12 +2830,21 @@ def absensi_session():
     if manual_locked:
         locked = True   # Force locked for everyone
 
+    has_data = len(records) > 0
+    # Check if manually unlocked by owner (is_locked=0 with locked_by)
+    manually_unlocked = False
+    if sess:
+        try:
+            manually_unlocked = (sess['is_locked'] == 0 and bool(sess['locked_by']))
+        except: pass
     return jsonify({
         'session_id': sess['id'] if sess else None,
         'records': [dict(r) for r in records],
         'locked': locked,
         'manual_locked': manual_locked,
-        'can_unlock': is_owner()
+        'can_unlock': is_owner(),
+        'has_data': has_data,
+        'manually_unlocked': manually_unlocked
     })
 
 @app.route('/absensi/save', methods=['POST'])
@@ -2833,12 +2856,18 @@ def absensi_save():
     shift = data.get('shift')
     staff_ids = data.get('staff_ids', [])
 
-    # Check lock status including 48hr unlock window
+    # Check lock status — respect Owner manual unlock
     with get_db() as _db:
         _sess = _db.fetchone("SELECT * FROM attendance_sessions WHERE session_date=? AND shift=?", (session_date, shift))
-    _sess_dict = dict(_sess) if _sess else None
-    if is_session_locked(session_date, _sess_dict):
-        return jsonify({'ok': False, 'error': 'Input terkunci — melebihi batas H+1 atau masa buka kunci 48 jam sudah habis.'})
+    # Build simple dict safely
+    _sess_info = None
+    if _sess:
+        try:
+            _sess_info = {'is_locked': _sess['is_locked'], 'locked_by': _sess['locked_by'], 'locked_at': _sess['locked_at']}
+        except:
+            _sess_info = None
+    if is_session_locked(session_date, _sess_info) and not is_owner():
+        return jsonify({'ok': False, 'error': 'Input terkunci — melebihi batas H+1. Hubungi Owner untuk membuka kunci.'})
 
     period_start, period_end = get_current_pkhl_period()
     now_str = now_wib().strftime('%Y-%m-%d %H:%M:%S')
@@ -2870,11 +2899,22 @@ def absensi_save():
         if blocked:
             return jsonify({'ok': False, 'error': f"Karyawan berikut sudah mencapai 20 hari: {', '.join(blocked)}"})
 
-        # Clear and re-insert records
-        db.execute("DELETE FROM attendance_records WHERE session_id=?", (session_id,))
-        for sid in staff_ids:
-            db.execute("""INSERT INTO attendance_records (session_id, staff_id, created_by, created_at)
-                         VALUES (?,?,?,?)""", (session_id, sid, session.get('user'), now_str))
+        # HR Staff can only add — cannot remove existing records
+        if session.get('role') == 'hr_staff':
+            # Get existing staff_ids
+            existing = db.fetchall("SELECT staff_id FROM attendance_records WHERE session_id=?", (session_id,))
+            existing_ids = {r['staff_id'] for r in (existing or [])}
+            # Only insert new ones
+            for sid in staff_ids:
+                if sid not in existing_ids:
+                    db.execute("""INSERT INTO attendance_records (session_id, staff_id, created_by, created_at)
+                                 VALUES (?,?,?,?)""", (session_id, sid, session.get('user'), now_str))
+        else:
+            # HR Head/Owner — full replace
+            db.execute("DELETE FROM attendance_records WHERE session_id=?", (session_id,))
+            for sid in staff_ids:
+                db.execute("""INSERT INTO attendance_records (session_id, staff_id, created_by, created_at)
+                             VALUES (?,?,?,?)""", (session_id, sid, session.get('user'), now_str))
         db.commit()
 
     log_audit('ABSENSI_SAVE', 'attendance_sessions', session_id,
@@ -2903,6 +2943,44 @@ def absensi_unlock():
                        (session.get('user'), now_str, sess['id']))
         db.commit()
     log_audit('ABSENSI_UNLOCK', 'attendance_sessions', None, f"Unlock: {session_date} {shift}")
+    return jsonify({'ok': True})
+
+@app.route('/absensi/relock', methods=['POST'])
+@login_required
+def absensi_relock():
+    if not is_owner():
+        return jsonify({'ok': False, 'error': 'Hanya Owner yang dapat mengunci sesi.'})
+    data = request.json
+    session_date = data.get('date')
+    shift = data.get('shift')
+    now_str = now_wib().strftime('%Y-%m-%d %H:%M:%S')
+    with get_db() as db:
+        sess = db.fetchone("SELECT id FROM attendance_sessions WHERE session_date=? AND shift=?",
+                           (session_date, shift))
+        if sess:
+            db.execute("UPDATE attendance_sessions SET is_locked=1, locked_by=?, locked_at=? WHERE id=?",
+                       (session.get('user'), now_str, sess['id']))
+            db.commit()
+    log_audit('ABSENSI_RELOCK', 'attendance_sessions', None, f"Re-lock: {session_date} {shift}")
+    return jsonify({'ok': True})
+
+@app.route('/absensi/relock', methods=['POST'])
+@login_required
+def absensi_relock():
+    if not is_owner():
+        return jsonify({'ok': False, 'error': 'Hanya Owner yang dapat mengunci sesi.'})
+    data = request.json
+    session_date = data.get('date')
+    shift = data.get('shift')
+    now_str = now_wib().strftime('%Y-%m-%d %H:%M:%S')
+    with get_db() as db:
+        sess = db.fetchone("SELECT id FROM attendance_sessions WHERE session_date=? AND shift=?",
+                           (session_date, shift))
+        if sess:
+            db.execute("UPDATE attendance_sessions SET is_locked=1, locked_by=?, locked_at=? WHERE id=?",
+                       (session.get('user'), now_str, sess['id']))
+            db.commit()
+    log_audit('ABSENSI_RELOCK', 'attendance_sessions', None, f"Re-lock: {session_date} {shift}")
     return jsonify({'ok': True})
 
 @app.route('/absensi/staff-list')
