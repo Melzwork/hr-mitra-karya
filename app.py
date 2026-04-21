@@ -2811,8 +2811,15 @@ def absensi_session():
                 ORDER BY s.full_name
             """, (sess['id'],))
 
-    # is_locked: 0 = default, -1 = owner unlocked, 1 = manually locked
-    owner_unlocked = sess and sess['is_locked'] == -1
+    # is_locked: 0 = default, -1 = owner unlocked (check locked_at for expiry), 1 = manually locked
+    owner_unlocked = False
+    if sess and sess['is_locked'] == -1:
+        # Check if 48hr window still valid (locked_at stores unlocked_until)
+        try:
+            unlocked_until = datetime.strptime(sess['locked_at'][:19], '%Y-%m-%d %H:%M:%S')
+            owner_unlocked = now_wib() < unlocked_until
+        except:
+            owner_unlocked = True  # fallback: treat as unlocked
     manual_locked = sess and sess['is_locked'] == 1
 
     if owner_unlocked:
@@ -2895,17 +2902,20 @@ def absensi_unlock():
     session_date = data.get('date')
     shift = data.get('shift')
     now_str = now_wib().strftime('%Y-%m-%d %H:%M:%S')
+    # Unlock lasts 48 hours from now
+    unlocked_until = (now_wib() + timedelta(hours=48)).strftime('%Y-%m-%d %H:%M:%S')
     with get_db() as db:
         sess = db.fetchone("SELECT id FROM attendance_sessions WHERE session_date=? AND shift=?",
                            (session_date, shift))
         if not sess:
-            db.execute("""INSERT INTO attendance_sessions (session_date, shift, is_locked, created_by, created_at)
-                         VALUES (?,?,-1,?,?)""", (session_date, shift, session.get('user'), now_str))
+            db.execute("""INSERT INTO attendance_sessions (session_date, shift, is_locked, locked_by, locked_at, created_by, created_at)
+                         VALUES (?,?,-1,?,?,?,?)""",
+                      (session_date, shift, session.get('user'), unlocked_until, session.get('user'), now_str))
         else:
-            db.execute("UPDATE attendance_sessions SET is_locked=-1, locked_by=?, locked_at=? WHERE id=?",
-                       (session.get('user'), now_str, sess['id']))
+            db.execute("""UPDATE attendance_sessions SET is_locked=-1, locked_by=?, locked_at=? WHERE id=?""",
+                       (session.get('user'), unlocked_until, sess['id']))
         db.commit()
-    log_audit('ABSENSI_UNLOCK', 'attendance_sessions', None, f"Unlock: {session_date} {shift}")
+    log_audit('ABSENSI_UNLOCK', 'attendance_sessions', None, f"Unlock 48h: {session_date} {shift}")
     return jsonify({'ok': True})
 
 @app.route('/absensi/staff-list')
@@ -2948,23 +2958,23 @@ def absensi_staff_list():
 @app.route('/absensi/export')
 @login_required
 def absensi_export():
-    """Export attendance to Excel."""
+    """Export attendance to Excel — 1 column per date showing P/M/A."""
     from openpyxl import Workbook
     from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
     import io
 
     date_from = request.args.get('from', '')
-    date_to = request.args.get('to', '')
-    dept = request.args.get('dept', '')
+    date_to   = request.args.get('to', '')
+    dept      = request.args.get('dept', '')
 
     if not date_from or not date_to:
         flash('Pilih rentang tanggal untuk export.', 'error')
         return redirect(url_for('absensi'))
 
-    # Get all dates in range
     try:
         d_from = datetime.strptime(date_from, '%Y-%m-%d').date()
-        d_to = datetime.strptime(date_to, '%Y-%m-%d').date()
+        d_to   = datetime.strptime(date_to,   '%Y-%m-%d').date()
     except:
         flash('Format tanggal tidak valid.', 'error')
         return redirect(url_for('absensi'))
@@ -2975,7 +2985,6 @@ def absensi_export():
         dates.append(cur.strftime('%Y-%m-%d'))
         cur += timedelta(days=1)
 
-    # Get all active staff in period
     with get_db() as db:
         if dept:
             staff_list = db.fetchall("""
@@ -2992,145 +3001,122 @@ def absensi_export():
                 ORDER BY s.department, s.full_name
             """)
 
-        # Get all sessions and records in range
         sessions = db.fetchall("""
             SELECT id, session_date, shift FROM attendance_sessions
             WHERE session_date >= ? AND session_date <= ?
         """, (date_from, date_to))
 
-        # Build lookup: {(date, shift): set(staff_id)}
+        # {(date, shift): set(staff_id)}
         attendance_map = {}
         for sess in (sessions or []):
             key = (sess['session_date'], sess['shift'])
             records = db.fetchall("SELECT staff_id FROM attendance_records WHERE session_id=?", (sess['id'],))
             attendance_map[key] = {r['staff_id'] for r in (records or [])}
 
-    # Build Excel
     wb = Workbook()
     ws = wb.active
     ws.title = "Absensi"
 
     # Styles
-    hdr_fill = PatternFill("solid", fgColor="1A2535")
-    hdr_font = Font(color="FFFFFF", bold=True, size=9)
+    hdr_fill  = PatternFill("solid", fgColor="1A2535")
+    hdr_font  = Font(color="FFFFFF", bold=True, size=9)
     pagi_fill = PatternFill("solid", fgColor="FFF8E1")
-    malam_fill = PatternFill("solid", fgColor="EDE7F6")
-    alpha_fill = PatternFill("solid", fgColor="FAEAEA")
-    ok_fill = PatternFill("solid", fgColor="E8F5EE")
+    malam_fill= PatternFill("solid", fgColor="EDE7F6")
+    alpha_fill= PatternFill("solid", fgColor="FAEAEA")
     warn_fill = PatternFill("solid", fgColor="FFF8E1")
-    block_fill = PatternFill("solid", fgColor="FAEAEA")
-    center = Alignment(horizontal='center', vertical='center')
-    thin = Border(
-        left=Side(style='thin', color='DDDDDD'),
-        right=Side(style='thin', color='DDDDDD'),
-        top=Side(style='thin', color='DDDDDD'),
-        bottom=Side(style='thin', color='DDDDDD')
-    )
+    block_fill= PatternFill("solid", fgColor="FAEAEA")
+    ok_fill   = PatternFill("solid", fgColor="E8F5EE")
+    center    = Alignment(horizontal='center', vertical='center')
+    thin      = Border(
+        left=Side(style='thin', color='DDDDDD'), right=Side(style='thin', color='DDDDDD'),
+        top=Side(style='thin', color='DDDDDD'),  bottom=Side(style='thin', color='DDDDDD'))
 
-    # Header row 1 — title
-    ws.merge_cells(f'A1:B1')
+    # Title row
+    last_col = 5 + len(dates) + 2  # 5 fixed + dates + 2 totals
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=last_col)
     ws['A1'] = f"Rekap Absensi: {date_from} s/d {date_to}"
     ws['A1'].font = Font(bold=True, size=12)
     ws.row_dimensions[1].height = 20
 
-    # Header row 2 — columns
-    row2_cols = ['No', 'Nama Karyawan', 'NIP', 'Departemen', 'Tipe']
-    # Add date columns (each date = 2 cols: Pagi, Malam)
-    col = 6
+    # Fixed headers
+    for ci, lbl in enumerate(['No','Nama Karyawan','NIP','Departemen','Tipe'], 1):
+        c = ws.cell(2, ci, lbl)
+        c.fill = hdr_fill; c.font = hdr_font; c.alignment = center
+
+    # Date headers — 1 column each
     date_col_map = {}
-    for d in dates:
-        date_col_map[d] = col
-        col += 2
-    # Then totals
-    total_col = col
-
-    # Write header
-    ws.cell(2, 1, 'No').fill = hdr_fill
-    ws.cell(2, 1).font = hdr_font
-    ws.cell(2, 2, 'Nama Karyawan').fill = hdr_fill
-    ws.cell(2, 2).font = hdr_font
-    ws.cell(2, 3, 'NIP').fill = hdr_fill
-    ws.cell(2, 3).font = hdr_font
-    ws.cell(2, 4, 'Departemen').fill = hdr_fill
-    ws.cell(2, 4).font = hdr_font
-    ws.cell(2, 5, 'Tipe').fill = hdr_fill
-    ws.cell(2, 5).font = hdr_font
-
-    for d, dc in date_col_map.items():
+    for i, d in enumerate(dates):
+        dc = 6 + i
+        date_col_map[d] = dc
         d_obj = datetime.strptime(d, '%Y-%m-%d')
         label = d_obj.strftime('%d/%m')
-        ws.merge_cells(start_row=2, start_column=dc, end_row=2, end_column=dc+1)
         c = ws.cell(2, dc, label)
         c.fill = hdr_fill; c.font = hdr_font; c.alignment = center
-        ws.cell(3, dc, 'P').fill = PatternFill("solid", fgColor="FFD54F")
-        ws.cell(3, dc).font = Font(bold=True, size=8, color="7B5800")
-        ws.cell(3, dc).alignment = center
-        ws.cell(3, dc+1, 'M').fill = PatternFill("solid", fgColor="CE93D8")
-        ws.cell(3, dc+1).font = Font(bold=True, size=8, color="4A148C")
-        ws.cell(3, dc+1).alignment = center
+        ws.column_dimensions[get_column_letter(dc)].width = 5
 
     # Total headers
-    for i, lbl in enumerate(['Total P', 'Total M', 'Total Hadir', 'Alpha']):
-        c = ws.cell(2, total_col+i, lbl)
+    total_col = 6 + len(dates)
+    for i, lbl in enumerate(['Total Hadir', 'Alpha']):
+        c = ws.cell(2, total_col + i, lbl)
         c.fill = hdr_fill; c.font = hdr_font; c.alignment = center
-        ws.merge_cells(start_row=2, start_column=total_col+i, end_row=3, end_column=total_col+i)
 
-    period_start, period_end = get_current_pkhl_period()
+    # Fixed col widths
+    ws.column_dimensions['A'].width = 4
+    ws.column_dimensions['B'].width = 24
+    ws.column_dimensions['C'].width = 8
+    ws.column_dimensions['D'].width = 14
+    ws.column_dimensions['E'].width = 12
+    ws.column_dimensions[get_column_letter(total_col)].width = 12
+    ws.column_dimensions[get_column_letter(total_col+1)].width = 8
 
     # Data rows
     for idx, s in enumerate(staff_list or []):
-        r = idx + 4  # start from row 4
+        r = idx + 3
         is_hl = s['staff_type'] in ('HL-Lamaran', 'HL-Outsource')
         hl_days = get_pkhl_days(s['id'], date_from, date_to) if is_hl else 0
 
         ws.cell(r, 1, idx+1).alignment = center
-        ws.cell(r, 2, s['full_name'])
-        ws.cell(r, 2).font = Font(bold=True, size=9)
+        ws.cell(r, 2, s['full_name']).font = Font(bold=True, size=9)
         ws.cell(r, 3, s['emp_id']).alignment = center
         ws.cell(r, 4, s['department'])
-        ws.cell(r, 5, s['staff_type'])
-        ws.cell(r, 5).font = Font(size=8)
+        ws.cell(r, 5, s['staff_type']).font = Font(size=8)
 
-        total_p = total_m = total_alpha = 0
+        total_hadir = total_alpha = 0
         for d, dc in date_col_map.items():
-            hadir_p = s['id'] in attendance_map.get((d, 'Pagi'), set())
+            hadir_p = s['id'] in attendance_map.get((d, 'Pagi'),  set())
             hadir_m = s['id'] in attendance_map.get((d, 'Malam'), set())
-            p_cell = ws.cell(r, dc, 'P' if hadir_p else 'A')
-            m_cell = ws.cell(r, dc+1, 'M' if hadir_m else 'A')
-            p_cell.alignment = center; m_cell.alignment = center
-            p_cell.font = Font(size=9, bold=hadir_p, color='7B5800' if hadir_p else '8B1F1F')
-            m_cell.font = Font(size=9, bold=hadir_m, color='4A148C' if hadir_m else '8B1F1F')
-            if hadir_p: p_cell.fill = pagi_fill; total_p += 1
-            else: p_cell.fill = alpha_fill; total_alpha += 1
-            if hadir_m: m_cell.fill = malam_fill; total_m += 1
-            else: m_cell.fill = alpha_fill; total_alpha += 1
 
-        total_hadir = total_p + total_m
-        ws.cell(r, total_col, total_p).alignment = center
-        ws.cell(r, total_col+1, total_m).alignment = center
-        tc = ws.cell(r, total_col+2, total_hadir)
+            if hadir_p:
+                val = 'P';  fill = pagi_fill;  color = '7B5800'
+            elif hadir_m:
+                val = 'M';  fill = malam_fill; color = '4A148C'
+            else:
+                val = 'A';  fill = alpha_fill; color = '8B1F1F'
+
+            cell = ws.cell(r, dc, val)
+            cell.fill = fill
+            cell.font = Font(size=9, bold=(val != 'A'), color=color)
+            cell.alignment = center
+            cell.border = thin
+
+            if val != 'A': total_hadir += 1
+            else:          total_alpha += 1
+
+        # Totals
+        tc = ws.cell(r, total_col, total_hadir)
         tc.alignment = center; tc.font = Font(bold=True, size=9)
         if is_hl:
-            if hl_days >= 20: tc.fill = block_fill; tc.font = Font(bold=True, size=9, color='8B1F1F')
-            elif hl_days >= 18: tc.fill = warn_fill; tc.font = Font(bold=True, size=9, color='7B5800')
-            else: tc.fill = ok_fill
-        ws.cell(r, total_col+3, total_alpha).alignment = center
+            if hl_days >= 20:   tc.fill = block_fill; tc.font = Font(bold=True, size=9, color='8B1F1F')
+            elif hl_days >= 18: tc.fill = warn_fill;  tc.font = Font(bold=True, size=9, color='7B5800')
+            else:               tc.fill = ok_fill
+        tc.border = thin
 
-        # Apply borders
-        for c in range(1, total_col+4):
-            ws.cell(r, c).border = thin
+        ac = ws.cell(r, total_col+1, total_alpha)
+        ac.alignment = center; ac.border = thin
 
-    # Column widths
-    ws.column_dimensions['A'].width = 4
-    ws.column_dimensions['B'].width = 22
-    ws.column_dimensions['C'].width = 8
-    ws.column_dimensions['D'].width = 14
-    ws.column_dimensions['E'].width = 12
-    for d, dc in date_col_map.items():
-        col_letter = ws.cell(1, dc).column_letter
-        col_letter2 = ws.cell(1, dc+1).column_letter
-        ws.column_dimensions[col_letter].width = 4
-        ws.column_dimensions[col_letter2].width = 4
+        # Row borders for fixed cols
+        for ci in range(1, 6):
+            ws.cell(r, ci).border = thin
 
     buf = io.BytesIO()
     wb.save(buf)
