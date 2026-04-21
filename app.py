@@ -2964,25 +2964,6 @@ def absensi_relock():
     log_audit('ABSENSI_RELOCK', 'attendance_sessions', None, f"Re-lock: {session_date} {shift}")
     return jsonify({'ok': True})
 
-@app.route('/absensi/relock', methods=['POST'])
-@login_required
-def absensi_relock():
-    if not is_owner():
-        return jsonify({'ok': False, 'error': 'Hanya Owner yang dapat mengunci sesi.'})
-    data = request.json
-    session_date = data.get('date')
-    shift = data.get('shift')
-    now_str = now_wib().strftime('%Y-%m-%d %H:%M:%S')
-    with get_db() as db:
-        sess = db.fetchone("SELECT id FROM attendance_sessions WHERE session_date=? AND shift=?",
-                           (session_date, shift))
-        if sess:
-            db.execute("UPDATE attendance_sessions SET is_locked=1, locked_by=?, locked_at=? WHERE id=?",
-                       (session.get('user'), now_str, sess['id']))
-            db.commit()
-    log_audit('ABSENSI_RELOCK', 'attendance_sessions', None, f"Re-lock: {session_date} {shift}")
-    return jsonify({'ok': True})
-
 @app.route('/absensi/staff-list')
 @login_required
 def absensi_staff_list():
