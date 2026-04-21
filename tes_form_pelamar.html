@@ -229,11 +229,10 @@ textarea{resize:vertical;min-height:60px}
                   <option>Diri Sendiri</option>
                   <option>Ayah</option>
                   <option>Ibu</option>
-                  <option>Suami</option>
-                  <option>Istri</option>
                   <option>Kakak</option>
                   <option>Adik</option>
-                  <option>Anak</option>
+                  <option>Kakek</option>
+                  <option>Nenek</option>
                   <option>Lainnya</option>
                 </select>
               </td>
@@ -251,7 +250,7 @@ textarea{resize:vertical;min-height:60px}
 
     <!-- SUSUNAN KELUARGA MENIKAH -->
     <div class="section">
-      <div class="section-header">3. Susunan Keluarga Menikah — Diri Sendiri, Istri/Suami, Anak (<strong>wajib isi</strong>) <span id="menikah-required-note" style="display:none;color:#C0392B;font-size:11px">— Wajib isi lengkap jika status kawin</span></div>
+      <div class="section-header">3. Susunan Keluarga Menikah — Diri Sendiri, Istri/Suami, Anak (<strong>wajib isi</strong>) <span id="menikah-required-note" style="display:none;color:#C0392B;font-size:11px;">— Wajib isi minimal 2 baris (Diri Sendiri + Istri/Suami) jika status Kawin</span></div>
       <div class="section-body">
         <table class="table-section">
           <thead><tr><th>Hubungan</th><th>Nama</th><th>L/P</th><th>Usia</th><th>Pendidikan</th><th>Pekerjaan</th></tr></thead>
@@ -513,11 +512,19 @@ function checkKawin() {
   if (!status) return;
   var isKawin = status.value === 'Kawin';
   if (note) note.style.display = isKawin ? 'inline' : 'none';
-  // Row 0 is always required regardless of marital status
+  // If Kawin: row 1 (index 1) also becomes required
+  var fields1 = ['kelm_hubungan_1','kelm_nama_1','kelm_lp_1','kelm_usia_1'];
+  fields1.forEach(function(n) {
+    var el = document.querySelector('[name="' + n + '"]');
+    if (el) el.required = isKawin;
+  });
 }
 document.addEventListener('DOMContentLoaded', function() {
   var statusEl = document.querySelector('select[name="status_perkawinan"]');
-  if (statusEl) statusEl.addEventListener('change', checkKawin);
+  if (statusEl) {
+    statusEl.addEventListener('change', checkKawin);
+    checkKawin(); // run on load in case form is re-rendered
+  }
 });
 
 // ── Q5/Q7 conditional text box ───────────────────────────────────────────────
@@ -579,6 +586,30 @@ function showDetail(num, val) {
 
 function validateTables() {
   var errors = [];
+
+  // Susunan Keluarga Menikah — if Kawin, must fill at least 2 rows (diri sendiri + pasangan)
+  var statusVal = document.querySelector('select[name="status_perkawinan"]');
+  if (statusVal && statusVal.value === 'Kawin') {
+    var kelmFilled = 0;
+    for (var ki = 0; ki < 7; ki++) {
+      var kHub = document.querySelector('[name="kelm_hubungan_' + ki + '"]');
+      var kNama = document.querySelector('[name="kelm_nama_' + ki + '"]');
+      if (kHub && kNama && kHub.value.trim() && kNama.value.trim()) kelmFilled++;
+    }
+    if (kelmFilled < 2) {
+      errors.push('Susunan Keluarga Menikah: jika status Kawin, wajib isi minimal 2 baris (Diri Sendiri dan Istri/Suami).');
+    }
+    // Also check row 0 and 1 are complete
+    for (var ki = 0; ki < 2; ki++) {
+      var kHub = document.querySelector('[name="kelm_hubungan_' + ki + '"]');
+      var kNama = document.querySelector('[name="kelm_nama_' + ki + '"]');
+      var kLp = document.querySelector('[name="kelm_lp_' + ki + '"]');
+      var kUsia = document.querySelector('[name="kelm_usia_' + ki + '"]');
+      if (!kHub || !kHub.value.trim() || !kNama || !kNama.value.trim() || !kLp || !kLp.value.trim() || !kUsia || !kUsia.value.trim()) {
+        if (kelmFilled < 2) break; // already caught above
+      }
+    }
+  }
 
   // Susunan Keluarga — if any field filled, all must be filled
   for (var i = 1; i <= 10; i++) {
