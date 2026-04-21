@@ -1628,6 +1628,8 @@ def init_test_tables():
             except: pass
             try: db.execute("ALTER TABLE test_codes ADD COLUMN questions_json TEXT")
             except: pass
+            try: db.execute("ALTER TABLE data_pelamar ADD COLUMN keluarga_menikah_json TEXT")
+            except: pass
             # Attendance tables
             try:
                 db.execute("""CREATE TABLE IF NOT EXISTS attendance_sessions (
@@ -1855,10 +1857,10 @@ def tes_selesai():
                      status_perkawinan, alamat_ktp, alamat_tinggal, no_hp, email,
                      rumah_status, kendaraan, kendaraan_merk, kendaraan_milik,
                      sosmed_fb, sosmed_ig, sosmed_twitter,
-                     keluarga_json, pendidikan_json, pekerjaan_json,
+                     keluarga_json, keluarga_menikah_json, pendidikan_json, pekerjaan_json,
                      organisasi_json, referensi_json, darurat_json,
                      pertanyaan_json, deklarasi_nama)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (result_id, session.get('tes_code'),
                      fd.get('nama_lengkap'), fd.get('nik'),
                      fd.get('tempat_lahir'), fd.get('tanggal_lahir'),
@@ -1871,6 +1873,7 @@ def tes_selesai():
                      fd.get('kendaraan_merk'), fd.get('kendaraan_milik'),
                      fd.get('sosmed_fb'), fd.get('sosmed_ig'), fd.get('sosmed_twitter'),
                      json.dumps(fd.get('keluarga',[])),
+                     json.dumps(fd.get('keluarga_menikah',[])),
                      json.dumps(fd.get('pendidikan',[])),
                      json.dumps(fd.get('pekerjaan',[])),
                      json.dumps(fd.get('organisasi',[])),
@@ -2032,13 +2035,39 @@ def print_hasil_tes(result_id):
                 story.append(t)
         except: pass
 
+    # ── Susunan Keluarga Menikah ─────────────────────────────────────────────────
+    if pelamar and pelamar.get('keluarga_menikah_json'):
+        try:
+            keluarga_menikah = _json.loads(pelamar['keluarga_menikah_json'])
+            if keluarga_menikah:
+                story.append(Spacer(1, 0.2*cm))
+                story.append(section_header('3. SUSUNAN KELUARGA MENIKAH'))
+                story.append(Spacer(1, 0.1*cm))
+                cs2 = ParagraphStyle('tc2', fontSize=7.5, leading=10, wordWrap='LTR')
+                ch2 = ParagraphStyle('th2', fontSize=7.5, leading=10, wordWrap='LTR', fontName='Helvetica-Bold')
+                def C2(v): return Paragraph(str(v) if v else '', cs2)
+                def H2(v): return Paragraph(str(v), ch2)
+                rows2 = [[H2('Hubungan'),H2('Nama'),H2('L/P'),H2('Usia'),H2('Pendidikan'),H2('Pekerjaan')]]
+                for k in keluarga_menikah:
+                    rows2.append([C2(k.get('hubungan','')), C2(k.get('nama','')), C2(k.get('lp','')), C2(str(k.get('usia',''))), C2(k.get('pendidikan','')), C2(k.get('pekerjaan',''))])
+                t2 = Table(rows2, colWidths=[2.5*cm,3.5*cm,1*cm,1.2*cm,2.5*cm,6.3*cm])
+                t2.setStyle(TableStyle([
+                    ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#F5F4F0')),
+                    ('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#E0DED6')),
+                    ('PADDING',(0,0),(-1,-1),4),
+                    ('VALIGN',(0,0),(-1,-1),'TOP'),
+                    ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#FAFAF8')]),
+                ]))
+                story.append(t2)
+        except: pass
+
     # ── Pendidikan ──────────────────────────────────────────────────────────────
     if pelamar and pelamar.get('pendidikan_json'):
         try:
             pendidikan = _json.loads(pelamar['pendidikan_json'])
             if pendidikan:
                 story.append(Spacer(1, 0.2*cm))
-                story.append(section_header('3. RIWAYAT PENDIDIKAN'))
+                story.append(section_header('4. RIWAYAT PENDIDIKAN'))
                 story.append(Spacer(1, 0.1*cm))
                 rows = [[H('Tingkat'),H('Nama Sekolah'),H('Kota'),H('Jurusan'),H('Tahun'),H('Lulus')]]
                 for p in pendidikan:
@@ -2060,7 +2089,7 @@ def print_hasil_tes(result_id):
             pekerjaan = _json.loads(pelamar['pekerjaan_json'])
             if pekerjaan:
                 story.append(Spacer(1, 0.2*cm))
-                story.append(section_header('4. RIWAYAT PEKERJAAN'))
+                story.append(section_header('5. RIWAYAT PEKERJAAN'))
                 story.append(Spacer(1, 0.1*cm))
                 rows = [[H('Perusahaan'),H('Jabatan'),H('Lama Kerja'),H('Gaji Terakhir'),H('Alasan Berhenti')]]
                 for p in pekerjaan:
