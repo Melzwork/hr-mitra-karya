@@ -277,6 +277,29 @@ def init_db():
                 cur.execute("INSERT INTO users (username,password,full_name,role) VALUES (%s,%s,%s,%s) ON CONFLICT DO NOTHING",(u,p,n,r))
             except: pass
         conn.commit()
+        # Attendance tables (PostgreSQL)
+        try:
+            cur.execute("""CREATE TABLE IF NOT EXISTS attendance_sessions (
+                id SERIAL PRIMARY KEY,
+                session_date VARCHAR(10) NOT NULL,
+                shift VARCHAR(10) NOT NULL,
+                is_locked INTEGER DEFAULT 0,
+                locked_by VARCHAR(100),
+                locked_at VARCHAR(30),
+                created_by VARCHAR(100),
+                created_at VARCHAR(30),
+                UNIQUE(session_date, shift))""")
+        except: pass
+        try:
+            cur.execute("""CREATE TABLE IF NOT EXISTS attendance_records (
+                id SERIAL PRIMARY KEY,
+                session_id INTEGER NOT NULL,
+                staff_id INTEGER NOT NULL,
+                created_by VARCHAR(100),
+                created_at VARCHAR(30),
+                UNIQUE(session_id, staff_id))""")
+        except: pass
+        conn.commit()
         conn.close()
     else:
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -921,7 +944,7 @@ def edit_period(period_id):
         end_date          = request.form.get('end_date','').strip() or None
         end_reason        = request.form.get('end_reason','').strip() or None
         staff_type        = request.form.get('staff_type','').strip()
-        sponsor_name      = request.form.get('sponsor_name','').strip() or None
+        sponsor_name      = request.form.get('sponsor_name','').strip().title() or None
         bpjs_enrolled     = 1 if request.form.get('bpjs_enrolled') else 0
         with get_db() as db:
             db.execute("""UPDATE employment_periods SET
@@ -975,7 +998,7 @@ def return_to_work(staff_id):
         db.execute("""INSERT INTO employment_periods
             (staff_id,period_number,staff_type,start_date,contract_end_date,sponsor_name,created_by)
             VALUES (?,?,?,?,?,?,?)""",
-            (staff_id,new_p,st,sd,ce,request.form.get('sponsor_name',''),session['user']))
+            (staff_id,new_p,st,sd,ce,request.form.get('sponsor_name','').strip().title(),session['user']))
         db.execute("""UPDATE staff SET status='AKTIF',is_blacklisted=0,blacklist_reason=NULL,
                      updated_by=?,updated_at=datetime('now','localtime') WHERE id=?""",
                   (session['user'],staff_id))
@@ -983,6 +1006,23 @@ def return_to_work(staff_id):
         log_audit('RETURN_TO_WORK','staff',staff_id,f"Periode {new_p} mulai {sd}")
     flash(f'{staff["full_name"]} kembali bekerja.','success')
     return redirect(url_for('view_staff',staff_id=staff_id))
+
+@app.route('/sponsors/rename', methods=['POST'])
+@login_required
+@role_required('hr_head','owner')
+def sponsor_rename():
+    old_name = request.form.get('old_name','').strip()
+    new_name = request.form.get('new_name','').strip().title()
+    if not old_name or not new_name:
+        flash('Nama lama dan baru wajib diisi.', 'error')
+        return redirect(url_for('sponsors'))
+    with get_db() as db:
+        db.execute("UPDATE employment_periods SET sponsor_name=? WHERE UPPER(sponsor_name)=UPPER(?)",
+                   (new_name, old_name))
+        db.commit()
+    log_audit('RENAME_SPONSOR', 'employment_periods', None, f"'{old_name}' → '{new_name}'")
+    flash(f'Sponsor "{old_name}" berhasil diganti menjadi "{new_name}".', 'success')
+    return redirect(url_for('sponsors'))
 
 @app.route('/sponsors')
 @login_required
@@ -998,7 +1038,7 @@ def sponsors():
     from collections import defaultdict
     sponsor_map = defaultdict(list)
     for r in rows: sponsor_map[r['sponsor_name']].append(r)
-    return render_template('sponsors.html', sponsor_map=dict(sponsor_map))
+    return render_template('sponsors.html', sponsor_map=dict(sponsor_map), is_head_or_owner=is_head_or_owner(), is_owner=is_owner())
 
 @app.route('/audit')
 @login_required
@@ -1886,6 +1926,13 @@ def tes_selesai():
                 import traceback
                 print(f"ERROR saving data_pelamar: {e}")
                 traceback.print_exc()
+
+    # Log test completion
+    try:
+        log_audit('TES_SELESAI', 'test_results', result_id,
+                  f"Peserta: {session.get('tes_nama','?')} | Posisi: {session.get('tes_posisi','?')} | Verdict: {verdict}")
+    except Exception as e:
+        print(f"Audit log error: {e}")
 
     # Log test completion
     try:

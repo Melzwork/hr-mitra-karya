@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}Dokumen Karyawan{% endblock %}
+{% block content %}
+
+<div style="font-size:22px;font-weight:700;margin-bottom:20px;">📋 Dokumen Karyawan</div>
+
+<!-- Filter -->
+<div style="background:#fff;border:1px solid #E0DED6;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+  <form method="GET" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+    <div>
+      <div style="font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Dari Tanggal</div>
+      <input type="date" name="from" value="{{ date_from }}" style="padding:8px 12px;border:1px solid #E0DED6;border-radius:8px;font-size:13px;">
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Sampai Tanggal</div>
+      <input type="date" name="to" value="{{ date_to }}" style="padding:8px 12px;border:1px solid #E0DED6;border-radius:8px;font-size:13px;">
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Jenis Dokumen</div>
+      <select name="sp_type" style="padding:8px 12px;border:1px solid #E0DED6;border-radius:8px;font-size:13px;background:#fff;">
+        <option value="">Semua</option>
+        <optgroup label="Surat Peringatan">
+          <option value="SP1" {{ 'selected' if sp_type=='SP1' }}>SP 1</option>
+          <option value="SP2" {{ 'selected' if sp_type=='SP2' }}>SP 2</option>
+          <option value="SP3" {{ 'selected' if sp_type=='SP3' }}>SP 3</option>
+          <option value="SKB" {{ 'selected' if sp_type=='SKB' }}>SKB</option>
+          <option value="SKEP" {{ 'selected' if sp_type=='SKEP' }}>SKEP</option>
+        </optgroup>
+        <optgroup label="Dokumen Lainnya">
+          {% for t in all_types %}
+          {% if t not in ['SP1','SP2','SP3','SKB','SKEP'] %}
+          <option value="{{ t }}" {{ 'selected' if sp_type==t }}>{{ t }}</option>
+          {% endif %}
+          {% endfor %}
+        </optgroup>
+      </select>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Departemen</div>
+      <select name="dept" style="padding:8px 12px;border:1px solid #E0DED6;border-radius:8px;font-size:13px;background:#fff;">
+        <option value="">Semua Departemen</option>
+        {% for d in depts %}<option value="{{ d }}" {{ 'selected' if dept==d }}>{{ d }}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit" style="padding:8px 18px;background:#1A1916;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">🔍 Filter</button>
+    <a href="{{ url_for('surat_peringatan') }}" style="padding:8px 14px;background:#fff;color:#1A1916;border:1px solid #E0DED6;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;">Reset</a>
+  </form>
+</div>
+
+<!-- Summary -->
+<div style="font-size:13px;color:#6B6A64;margin-bottom:12px;">
+  Menampilkan <strong>{{ records|length }}</strong> dokumen
+  {% if date_from or date_to or sp_type or dept %}<span style="color:#E8A020;">— difilter</span>{% endif %}
+</div>
+
+<!-- Table -->
+<div style="background:#fff;border:1px solid #E0DED6;border-radius:12px;overflow:hidden;">
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead style="background:#F5F4F0;">
+        <tr>
+          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #E0DED6;">Sumber</th>
+          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #E0DED6;">No. Dokumen</th>
+          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #E0DED6;">Nama Karyawan</th>
+          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #E0DED6;">NIP</th>
+          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #E0DED6;">Departemen</th>
+          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #E0DED6;">Jenis</th>
+          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #E0DED6;">Tanggal</th>
+          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #E0DED6;">Keterangan</th>
+          <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #E0DED6;">Dokumen</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if not records %}
+        <tr>
+          <td colspan="9" style="padding:48px;text-align:center;color:#9B9A94;">Tidak ada dokumen ditemukan.</td>
+        </tr>
+        {% endif %}
+        {% for r in records %}
+        {% set is_sp = r.source == 'SP' %}
+        {% set sp_colors = {'SP1':'#FFF8E1|#7B5800','SP2':'#FFF3E0|#E65100','SP3':'#FAEAEA|#8B1F1F','SKB':'#EDE7F6|#4A148C','SKEP':'#E3F2FD|#1565C0'} %}
+        {% set col = sp_colors.get(r.doc_type,'#F0EFE9|#1A1916').split('|') %}
+        <tr style="{{ 'background:#FFFDE7;' if is_sp else '' }}" onmouseover="this.style.background='#F5F4F0'" onmouseout="this.style.background='{{ '#FFFDE7' if is_sp else '#fff' }}'">
+          <td style="padding:10px 14px;border-bottom:1px solid #F0EFE9;">
+            <span style="font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600;background:{{ '#FFF8E1' if is_sp else '#E3F2FD' }};color:{{ '#7B5800' if is_sp else '#1565C0' }};">{{ 'SP' if is_sp else 'DOK' }}</span>
+          </td>
+          <td style="padding:10px 14px;border-bottom:1px solid #F0EFE9;font-size:11px;color:#6B6A64;white-space:nowrap;">{{ r.doc_ref }}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #F0EFE9;">
+            <a href="{{ url_for('view_staff', staff_id=r.staff_id) }}" style="font-weight:600;color:#1A1916;text-decoration:none;">{{ r.full_name }}</a>
+          </td>
+          <td style="padding:10px 14px;border-bottom:1px solid #F0EFE9;font-size:12px;color:#6B6A64;">{{ r.emp_id }}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #F0EFE9;">{{ r.department }}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #F0EFE9;">
+            <span style="background:{{ col[0] }};color:{{ col[1] }};border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;white-space:nowrap;">{{ r.doc_type }}</span>
+          </td>
+          <td style="padding:10px 14px;border-bottom:1px solid #F0EFE9;white-space:nowrap;font-size:12px;">{{ r.doc_date[:10] if r.doc_date else '—' }}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #F0EFE9;max-width:240px;">
+            <div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ r.description }}">{{ r.description or '—' }}</div>
+          </td>
+          <td style="padding:10px 14px;border-bottom:1px solid #F0EFE9;text-align:center;">
+            {% if r.drive_path %}
+            <a href="{{ r.drive_path }}" target="_blank" style="font-size:12px;color:#1D6B3E;font-weight:600;text-decoration:none;">🔗 Buka</a>
+            {% elif r.physical_location %}
+            <span style="font-size:11px;color:#6B6A64;">📁 {{ r.physical_location }}</span>
+            {% else %}
+            <span style="font-size:11px;color:#C0C0C0;">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

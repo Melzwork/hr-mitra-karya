@@ -3,6 +3,34 @@
 {% block page_title %}Sponsor — HL-Outsource{% endblock %}
 
 {% block content %}
+
+{% if is_head_or_owner %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat,msg in messages %}
+  <div class="alert alert-{{ cat }}" style="margin-bottom:12px;">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+<div style="background:#fff;border:1px solid #E0DED6;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+  <div style="font-size:14px;font-weight:700;margin-bottom:12px;">✏️ Ganti Nama Sponsor</div>
+  <form method="POST" action="{{ url_for('sponsor_rename') }}" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+    <div>
+      <div style="font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Nama Lama</div>
+      <select name="old_name" required style="padding:8px 12px;border:1px solid #E0DED6;border-radius:8px;font-size:13px;min-width:200px;">
+        <option value="">— Pilih Sponsor —</option>
+        {% for sponsor_name, staff_list in sponsor_map.items() %}
+        <option value="{{ sponsor_name }}">{{ sponsor_name }} ({{ staff_list|length }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:600;color:#6B6A64;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Nama Baru</div>
+      <input type="text" name="new_name" required placeholder="Nama yang benar" style="padding:8px 12px;border:1px solid #E0DED6;border-radius:8px;font-size:13px;min-width:200px;">
+    </div>
+    <button type="submit" style="padding:8px 16px;background:#1A1916;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Ganti</button>
+  </form>
+  <div style="font-size:11px;color:#9B9A94;margin-top:8px;">Mengganti semua karyawan dengan sponsor tersebut sekaligus.</div>
+</div>
+{% endif %}
 {% if sponsor_map %}
 {% for sponsor_name, staff_list in sponsor_map.items() %}
 {% set active_count = staff_list|selectattr('s_status','equalto','AKTIF')|list|length %}

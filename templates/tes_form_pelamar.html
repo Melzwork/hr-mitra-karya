@@ -72,7 +72,7 @@ textarea{resize:vertical;min-height:60px}
   {% if error %}<div class="error-bar">{{ error }}</div>{% endif %}
   <div class="posisi-badge">Posisi: {{ posisi }}</div>
 
-  <form method="POST" action="/tes/form-pelamar">
+  <form method="POST" action="/tes/form-pelamar" onsubmit="return validateTables() && validateSosmed() && checkDeklarasiName()">
 
     <!-- DATA PRIBADI -->
     <div class="section">
@@ -216,7 +216,7 @@ textarea{resize:vertical;min-height:60px}
 
     <!-- SUSUNAN KELUARGA -->
     <div class="section">
-      <div class="section-header">2. Susunan Keluarga (Ayah, Ibu, Kakak, Adik — <strong>termasuk diri sendiri</strong> — wajib isi minimal 3 baris)</div>
+      <div class="section-header">2. Susunan Keluarga — Ayah, Ibu, Kakak, Adik, Diri Sendiri (<strong>wajib isi minimal 3 baris</strong>)</div>
       <div class="section-body">
         <table class="table-section" id="tbl-kel">
           <thead><tr><th>Hubungan</th><th>Nama</th><th>L/P</th><th>Usia</th><th>Pendidikan</th><th>Pekerjaan</th></tr></thead>
@@ -229,11 +229,10 @@ textarea{resize:vertical;min-height:60px}
                   <option>Diri Sendiri</option>
                   <option>Ayah</option>
                   <option>Ibu</option>
-                  <option>Suami</option>
-                  <option>Istri</option>
                   <option>Kakak</option>
                   <option>Adik</option>
-                  <option>Anak</option>
+                  <option>Kakek</option>
+                  <option>Nenek</option>
                   <option>Lainnya</option>
                 </select>
               </td>
@@ -251,7 +250,7 @@ textarea{resize:vertical;min-height:60px}
 
     <!-- SUSUNAN KELUARGA MENIKAH -->
     <div class="section">
-      <div class="section-header">3. Susunan Keluarga (Jika Sudah Menikah — termasuk diri sendiri) <span id="menikah-required-note" style="display:none;color:#C0392B;font-size:11px">— Wajib isi jika status kawin</span></div>
+      <div class="section-header">3. Susunan Keluarga Menikah — Diri Sendiri, Istri/Suami, Anak (<strong>wajib isi</strong>) <span id="menikah-required-note" style="display:none;color:#C0392B;font-size:11px;">— Wajib isi minimal 2 baris (Diri Sendiri + Istri/Suami) jika status Kawin</span></div>
       <div class="section-body">
         <table class="table-section">
           <thead><tr><th>Hubungan</th><th>Nama</th><th>L/P</th><th>Usia</th><th>Pendidikan</th><th>Pekerjaan</th></tr></thead>
@@ -259,18 +258,18 @@ textarea{resize:vertical;min-height:60px}
             {% for i in range(7) %}
             <tr>
               <td>
-                <select name="kelm_hubungan_{{ i }}">
+                <select name="kelm_hubungan_{{ i }}" {{ 'required' if i <= 1 else '' }}>
                   <option value="">— Pilih —</option>
-                  <option>Diri Sendiri</option>
+                  <option {{ 'selected' if i == 0 else '' }}>Diri Sendiri</option>
                   <option>Suami</option>
                   <option>Istri</option>
                   <option>Anak</option>
                   <option>Lainnya</option>
                 </select>
               </td>
-              <td><input type="text" name="kelm_nama_{{ i }}" placeholder="Nama"></td>
-              <td><select name="kelm_lp_{{ i }}"><option value="">-</option><option>L</option><option>P</option></select></td>
-              <td><input type="number" name="kelm_usia_{{ i }}" placeholder="Usia" style="width:70px"></td>
+              <td><input type="text" name="kelm_nama_{{ i }}" placeholder="Nama" {{ 'required' if i <= 1 else '' }} {{ 'id=kelm_nama_0' if i == 0 else '' }}></td>
+              <td><select name="kelm_lp_{{ i }}" {{ 'required' if i <= 1 else '' }}><option value="">-</option><option>L</option><option>P</option></select></td>
+              <td><input type="number" name="kelm_usia_{{ i }}" placeholder="Usia" style="width:70px" {{ 'required' if i <= 1 else '' }}></td>
               <td><input type="text" name="kelm_pendidikan_{{ i }}" placeholder="SMA/S1..."></td>
               <td><input type="text" name="kelm_pekerjaan_{{ i }}" placeholder="Pekerjaan"></td>
             </tr>
@@ -489,7 +488,7 @@ textarea{resize:vertical;min-height:60px}
             </div>
           </div>
         </div>
-        <button type="submit" class="btn-submit" style="margin-top:16px" onclick="return validateTables() && validateSosmed() && checkDeklarasiName()">Simpan Data & Lanjutkan ke Tes →</button>
+        <button type="submit" class="btn-submit" style="margin-top:16px">Simpan Data & Lanjutkan ke Tes →</button>
       </div>
     </div>
 
@@ -510,15 +509,22 @@ function formatRupiah(el) {
 function checkKawin() {
   var status = document.querySelector('select[name="status_perkawinan"]');
   var note = document.getElementById('menikah-required-note');
-  var firstNama = document.getElementById('kelm_nama_0');
   if (!status) return;
   var isKawin = status.value === 'Kawin';
   if (note) note.style.display = isKawin ? 'inline' : 'none';
-  if (firstNama) firstNama.required = isKawin;
+  // If Kawin: row 1 (index 1) also becomes required
+  var fields1 = ['kelm_hubungan_1','kelm_nama_1','kelm_lp_1','kelm_usia_1'];
+  fields1.forEach(function(n) {
+    var el = document.querySelector('[name="' + n + '"]');
+    if (el) el.required = isKawin;
+  });
 }
 document.addEventListener('DOMContentLoaded', function() {
   var statusEl = document.querySelector('select[name="status_perkawinan"]');
-  if (statusEl) statusEl.addEventListener('change', checkKawin);
+  if (statusEl) {
+    statusEl.addEventListener('change', checkKawin);
+    checkKawin(); // run on load in case form is re-rendered
+  }
 });
 
 // ── Q5/Q7 conditional text box ───────────────────────────────────────────────
@@ -580,6 +586,30 @@ function showDetail(num, val) {
 
 function validateTables() {
   var errors = [];
+
+  // Susunan Keluarga Menikah — if Kawin, must fill at least 2 rows (diri sendiri + pasangan)
+  var statusVal = document.querySelector('select[name="status_perkawinan"]');
+  if (statusVal && statusVal.value === 'Kawin') {
+    var kelmFilled = 0;
+    for (var ki = 0; ki < 7; ki++) {
+      var kHub = document.querySelector('[name="kelm_hubungan_' + ki + '"]');
+      var kNama = document.querySelector('[name="kelm_nama_' + ki + '"]');
+      if (kHub && kNama && kHub.value.trim() && kNama.value.trim()) kelmFilled++;
+    }
+    if (kelmFilled < 2) {
+      errors.push('Susunan Keluarga Menikah: jika status Kawin, wajib isi minimal 2 baris (Diri Sendiri dan Istri/Suami).');
+    }
+    // Also check row 0 and 1 are complete
+    for (var ki = 0; ki < 2; ki++) {
+      var kHub = document.querySelector('[name="kelm_hubungan_' + ki + '"]');
+      var kNama = document.querySelector('[name="kelm_nama_' + ki + '"]');
+      var kLp = document.querySelector('[name="kelm_lp_' + ki + '"]');
+      var kUsia = document.querySelector('[name="kelm_usia_' + ki + '"]');
+      if (!kHub || !kHub.value.trim() || !kNama || !kNama.value.trim() || !kLp || !kLp.value.trim() || !kUsia || !kUsia.value.trim()) {
+        if (kelmFilled < 2) break; // already caught above
+      }
+    }
+  }
 
   // Susunan Keluarga — if any field filled, all must be filled
   for (var i = 1; i <= 10; i++) {

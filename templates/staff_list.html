@@ -12,9 +12,11 @@
     </select>
     <select name="status" style="width:140px;">
       <option value="AKTIF" {{ 'selected' if status=='AKTIF' }}>Aktif</option>
+      {% if is_head_or_owner %}
       <option value="TIDAK_AKTIF" {{ 'selected' if status=='TIDAK_AKTIF' }}>Tidak Aktif</option>
-      <option value="BLACKLIST" {{ 'selected' if status=='BLACKLIST' }}>Blacklist</option>
       <option value="" {{ 'selected' if status=='' }}>Semua</option>
+      {% endif %}
+      <option value="BLACKLIST" {{ 'selected' if status=='BLACKLIST' }}>Blacklist</option>
     </select>
     <button type="submit" class="btn btn-outline">Cari</button>
     <a href="{{ url_for('staff_list') }}" class="btn btn-outline">Reset</a>

@@ -239,6 +239,9 @@ textarea { resize: vertical; min-height: 80px; }
     <a href="{{ url_for('sponsors') }}" class="nav-item {% if request.endpoint=='sponsors' %}active{% endif %}">
       <span class="icon">🤝</span> Sponsor
     </a>
+    <a href="{{ url_for('dokumen_karyawan') }}" class="nav-item {% if request.endpoint=='dokumen_karyawan' %}active{% endif %}">
+      <span class="icon">📋</span> Dokumen Karyawan
+    </a>
     {% endif %}
     {% if session.role in ('hr_head','owner','hr_staff') %}
     <a href="{{ url_for('hr_hasil_tes') }}" class="nav-item {% if request.endpoint=='hr_hasil_tes' %}active{% endif %}">
