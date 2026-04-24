@@ -1,8 +1,22 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime, date, timedelta
 import pytz
+import bcrypt as _bcrypt
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 WIB = pytz.timezone('Asia/Jakarta')
 def now_wib(): return datetime.now(WIB).replace(tzinfo=None)
+
+def pw(p):
+    """Hash password with bcrypt."""
+    return _bcrypt.hashpw(p.encode(), _bcrypt.gensalt()).decode()
+
+def pw_check(plain, hashed):
+    """Verify password — supports bcrypt and legacy sha256."""
+    try:
+        return _bcrypt.checkpw(plain.encode(), hashed.encode())
+    except Exception:
+        return hashlib.sha256(plain.encode()).hexdigest() == hashed
 from functools import wraps
 import os, hashlib, json, calendar, random, string
 
@@ -21,6 +35,12 @@ app = Flask(__name__)
 app.jinja_env.globals.update(enumerate=enumerate)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.secret_key = os.environ.get('SECRET_KEY', 'hr_mitra_karya_2026_secret')
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# Rate limiter
+limiter = Limiter(get_remote_address, app=app, default_limits=[], storage_uri="memory://")
 
 # Custom Jinja2 filter: format date safely for both SQLite (string) and PostgreSQL (datetime)
 @app.template_filter('datestr')
@@ -568,12 +588,23 @@ def get_alerts_and_todos():
     return alerts, todos
 
 @app.route('/login', methods=['GET','POST'])
+@limiter.limit("10 per minute")
 def login():
     if request.method == 'POST':
-        pw = hashlib.sha256(request.form['password'].encode()).hexdigest()
         with get_db() as db:
-            user = db.fetchone("SELECT * FROM users WHERE username=? AND password=?", (request.form['username'],pw))
+            candidate = db.fetchone("SELECT * FROM users WHERE username=?", (request.form['username'],))
+        user = None
+        if candidate and pw_check(request.form['password'], candidate['password']):
+            user = candidate
+            # Auto-migrate sha256 → bcrypt silently
+            legacy = hashlib.sha256(request.form['password'].encode()).hexdigest()
+            if candidate['password'] == legacy:
+                new_hash = pw(request.form['password'])
+                with get_db() as db:
+                    db.execute("UPDATE users SET password=? WHERE id=?", (new_hash, candidate['id']))
+                    db.commit()
         if user:
+            session.permanent = True
             session['user']      = user['username']
             session['role']      = user['role']
             session['full_name'] = user['full_name']
@@ -1066,7 +1097,7 @@ def user_list():
 @role_required('owner')
 def add_user():
     if request.method == 'POST':
-        pw = hashlib.sha256(request.form['password'].encode()).hexdigest()
+        pw_hash = pw(request.form['password'])
         try:
             with get_db() as db:
                 db.execute("INSERT INTO users (username,password,full_name,role) VALUES (?,?,?,?)",
@@ -1097,7 +1128,7 @@ def delete_user(user_id):
 @login_required
 @role_required('owner')
 def reset_password(user_id):
-    pw = hashlib.sha256(request.form['new_password'].encode()).hexdigest()
+    pw_hash = pw(request.form['new_password'])
     with get_db() as db:
         user = db.fetchone("SELECT * FROM users WHERE id=?", (user_id,))
         db.execute("UPDATE users SET password=? WHERE id=?",(pw,user_id))
