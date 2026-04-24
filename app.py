@@ -2807,6 +2807,90 @@ def is_session_locked(session_date_str, sess=None):
     except:
         return True
 
+@app.route('/dokumen-karyawan')
+@login_required
+@role_required('hr_head','owner')
+def dokumen_karyawan():
+    """View all SP records across all employees, filterable by date and type."""
+    date_from = request.args.get('from', '')
+    date_to   = request.args.get('to', '')
+    sp_type   = request.args.get('sp_type', '')
+    dept      = request.args.get('dept', '')
+
+    # Build SP query
+    sp_query = """
+        SELECT dr.doc_ref, dr.sp_type as doc_type, dr.doc_code, dr.incident_date as doc_date,
+               dr.description, dr.drive_path, dr.physical_location, dr.created_at,
+               s.full_name, s.emp_id, s.department, s.position, s.id as staff_id,
+               'SP' as source
+        FROM discipline_records dr
+        JOIN staff s ON s.id = dr.staff_id
+        WHERE 1=1
+    """
+    # Build Documents query
+    doc_query = """
+        SELECT d.doc_ref, d.doc_type, d.doc_code, d.created_at as doc_date,
+               d.description, d.drive_path, d.physical_location, d.created_at,
+               s.full_name, s.emp_id, s.department, s.position, s.id as staff_id,
+               'DOC' as source
+        FROM documents d
+        JOIN staff s ON s.id = d.staff_id
+        WHERE 1=1
+    """
+    sp_params = []
+    doc_params = []
+
+    if date_from:
+        sp_query += " AND dr.incident_date >= ?"
+        sp_params.append(date_from)
+        doc_query += " AND d.created_at >= ?"
+        doc_params.append(date_from)
+    if date_to:
+        sp_query += " AND dr.incident_date <= ?"
+        sp_params.append(date_to)
+        doc_query += " AND d.created_at <= ?"
+        doc_params.append(date_to)
+    if sp_type:
+        sp_query += " AND dr.sp_type = ?"
+        sp_params.append(sp_type)
+        doc_query += " AND d.doc_type = ?"
+        doc_params.append(sp_type)
+    if dept:
+        sp_query += " AND s.department = ?"
+        sp_params.append(dept)
+        doc_query += " AND s.department = ?"
+        doc_params.append(dept)
+
+    sp_query += " ORDER BY dr.incident_date DESC"
+    doc_query += " ORDER BY d.created_at DESC"
+
+    with get_db() as db:
+        sp_records = db.fetchall(sp_query, sp_params) or []
+        doc_records = db.fetchall(doc_query, doc_params) or []
+
+    # Combine and sort by date
+    records = sorted(
+        [dict(r) for r in sp_records] + [dict(r) for r in doc_records],
+        key=lambda x: str(x.get('doc_date') or ''),
+        reverse=True
+    )
+
+    # Get all unique doc types for filter dropdown
+    all_types = sorted(set(
+        [r.get('doc_type','') for r in records if r.get('doc_type')]
+    ))
+
+    return render_template('dokumen_karyawan.html',
+                           records=records,
+                           date_from=date_from,
+                           date_to=date_to,
+                           sp_type=sp_type,
+                           dept=dept,
+                           depts=list(DEPARTMENTS_POSITIONS.keys()),
+                           all_types=all_types,
+                           is_owner=is_owner(),
+                           is_head_or_owner=is_head_or_owner())
+
 @app.route('/absensi')
 @login_required
 def absensi():
