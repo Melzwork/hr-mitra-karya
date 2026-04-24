@@ -177,6 +177,7 @@ class DB:
             sql_r = self._sql(sql) + ' RETURNING id'
             cur = self.conn.cursor()
             cur.execute(sql_r, params)
+            self.conn.commit()
             result = cur.fetchone()
             return result[0] if result else None
         else:
@@ -1882,16 +1883,14 @@ def tes_selesai():
                      json.dumps(fd.get('pertanyaan',{})),
                      fd.get('deklarasi_nama')))
             except Exception as e:
-                print(f"Warning: could not save data_pelamar: {e}")
+                import traceback
+                print(f"ERROR saving data_pelamar: {e}")
+                traceback.print_exc()
 
     # Log test completion
     try:
-        with get_db() as db:
-            db.execute(
-                "INSERT INTO audit_log (action, table_name, record_id, details, performed_by) VALUES (?,?,?,?,?)",
-                ('TES_SELESAI', 'test_results', result_id,
-                 f"Peserta: {session.get('tes_nama','?')} | Posisi: {session.get('tes_posisi','?')} | Verdict: {verdict}",
-                 session.get('tes_nama','sistem')))
+        log_audit('TES_SELESAI', 'test_results', result_id,
+                  f"Peserta: {session.get('tes_nama','?')} | Posisi: {session.get('tes_posisi','?')} | Verdict: {verdict}")
     except Exception as e:
         print(f"Audit log error: {e}")
 
@@ -2474,6 +2473,17 @@ def tes_form_pelamar():
         }
 
         # Validate deklarasi
+        # Backend validation: if Kawin, must have at least 2 rows in keluarga_menikah
+        if form_data.get('status_perkawinan') == 'Kawin':
+            kelm = form_data.get('keluarga_menikah', [])
+            if len(kelm) < 2:
+                return render_template('tes_form_pelamar.html',
+                                     error='Jika status Kawin, wajib isi minimal 2 baris pada Susunan Keluarga Menikah (Diri Sendiri dan Istri/Suami).',
+                                     nama=session.get('tes_nama',''),
+                                     nik=session.get('tes_nik',''),
+                                     posisi=session.get('tes_posisi',''),
+                                     form_data=form_data)
+
         if not form_data['deklarasi_nama']:
             return render_template('tes_form_pelamar.html',
                                  posisi=session.get('tes_posisi',''),
