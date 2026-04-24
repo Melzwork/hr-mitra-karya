@@ -2923,12 +2923,17 @@ def dokumen_karyawan():
             print(f"Doc query error: {e}")
             doc_records = []
 
-    # Safely convert rows to dicts
+    # Safely convert rows to dicts, normalizing dates to strings
     def to_dict(r):
         try:
-            return dict(r)
+            d = dict(r)
         except:
-            return {k: r[k] for k in r.keys()} if hasattr(r, 'keys') else {}
+            d = {k: r[k] for k in r.keys()} if hasattr(r, 'keys') else {}
+        # Convert datetime objects to strings
+        for k, v in d.items():
+            if hasattr(v, 'strftime'):
+                d[k] = v.strftime('%Y-%m-%d %H:%M:%S')
+        return d
 
     # Combine and sort by date
     records = sorted(
