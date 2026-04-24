@@ -2869,7 +2869,7 @@ def dokumen_karyawan():
         SELECT dr.doc_ref, dr.sp_type as doc_type, dr.doc_code, dr.incident_date as doc_date,
                dr.description, dr.drive_path, dr.physical_location, dr.created_at,
                s.full_name, s.emp_id, s.department, s.position, s.id as staff_id,
-               'SP' as source
+               CAST('SP' AS VARCHAR) as source
         FROM discipline_records dr
         JOIN staff s ON s.id = dr.staff_id
         WHERE 1=1
@@ -2879,7 +2879,7 @@ def dokumen_karyawan():
         SELECT d.doc_ref, d.doc_type, d.doc_code, d.created_at as doc_date,
                d.description, d.drive_path, d.physical_location, d.created_at,
                s.full_name, s.emp_id, s.department, s.position, s.id as staff_id,
-               'DOC' as source
+               CAST('DOC' AS VARCHAR) as source
         FROM documents d
         JOIN staff s ON s.id = d.staff_id
         WHERE 1=1
@@ -2912,12 +2912,27 @@ def dokumen_karyawan():
     doc_query += " ORDER BY d.created_at DESC"
 
     with get_db() as db:
-        sp_records = db.fetchall(sp_query, sp_params) or []
-        doc_records = db.fetchall(doc_query, doc_params) or []
+        try:
+            sp_records = db.fetchall(sp_query, sp_params) or []
+        except Exception as e:
+            print(f"SP query error: {e}")
+            sp_records = []
+        try:
+            doc_records = db.fetchall(doc_query, doc_params) or []
+        except Exception as e:
+            print(f"Doc query error: {e}")
+            doc_records = []
+
+    # Safely convert rows to dicts
+    def to_dict(r):
+        try:
+            return dict(r)
+        except:
+            return {k: r[k] for k in r.keys()} if hasattr(r, 'keys') else {}
 
     # Combine and sort by date
     records = sorted(
-        [dict(r) for r in sp_records] + [dict(r) for r in doc_records],
+        [to_dict(r) for r in sp_records] + [to_dict(r) for r in doc_records],
         key=lambda x: str(x.get('doc_date') or ''),
         reverse=True
     )
