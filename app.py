@@ -297,6 +297,12 @@ def init_db():
                 cur.execute("INSERT INTO users (username,password,full_name,role) VALUES (%s,%s,%s,%s) ON CONFLICT DO NOTHING",(u,p,n,r))
             except: pass
         conn.commit()
+        # Always-run column migrations
+        try: cur.execute("ALTER TABLE data_pelamar ADD COLUMN keluarga_menikah_json TEXT")
+        except: pass
+        try: cur.execute("ALTER TABLE test_codes ADD COLUMN questions_json TEXT")
+        except: pass
+        conn.commit()
         # Attendance tables (PostgreSQL)
         try:
             cur.execute("""CREATE TABLE IF NOT EXISTS attendance_sessions (
@@ -1965,13 +1971,6 @@ def tes_selesai():
     except Exception as e:
         print(f"Audit log error: {e}")
 
-    # Log test completion
-    try:
-        log_audit('TES_SELESAI', 'test_results', result_id,
-                  f"Peserta: {session.get('tes_nama','?')} | Posisi: {session.get('tes_posisi','?')} | Verdict: {verdict}")
-    except Exception as e:
-        print(f"Audit log error: {e}")
-
     # Clear test session
     for k in ['tes_code','tes_posisi','tes_tier','tes_nama','tes_nik',
               'tes_questions','tes_section','tes_answers','tes_form_data']:
@@ -2290,44 +2289,66 @@ def print_hasil_tes(result_id):
     sl = result.get('skor_logika', 0)
     se = result.get('skor_excel','')
     verdict = result.get('verdict','PENDING')
+    tier_pdf = result.get('tier','operator')
+    show_excel = (tier_pdf == 'admin')
 
     def score_color(passed):
         return colors.HexColor('#E8F5EE') if passed else colors.HexColor('#FAEAEA')
     def score_text_color(passed):
         return colors.HexColor('#1D6B3E') if passed else colors.HexColor('#8B1F1F')
 
-    score_data = [
-        [
+    if show_excel:
+        score_headers = [
             Paragraph('KETELITIAN', ps('sl',  fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
             Paragraph('MATEMATIKA', ps('sl2', fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
             Paragraph('LOGIKA',     ps('sl3', fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
             Paragraph('EXCEL / KOMPUTER', ps('sl4', fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
-        ],
-        [
+        ]
+        score_vals = [
             Paragraph(f'{sk}/10', ps('sv',  fontSize=20, fontName='Helvetica-Bold', textColor=score_text_color(sk>=7), alignment=TA_CENTER)),
             Paragraph(f'{sm}/5',  ps('sv2', fontSize=20, fontName='Helvetica-Bold', textColor=score_text_color(sm>=4), alignment=TA_CENTER)),
             Paragraph(f'{sl}/10', ps('sv3', fontSize=20, fontName='Helvetica-Bold', textColor=score_text_color(sl>=7), alignment=TA_CENTER)),
             Paragraph(se or '—',  ps('sv4', fontSize=14, fontName='Helvetica-Bold', textColor=score_text_color(se=='LULUS'), alignment=TA_CENTER)),
-        ],
-        [
+        ]
+        score_labels = [
             Paragraph('LULUS' if sk>=7 else 'TIDAK LULUS', ps('ss',  fontSize=9, textColor=score_text_color(sk>=7), alignment=TA_CENTER)),
             Paragraph('LULUS' if sm>=4 else 'TIDAK LULUS', ps('ss2', fontSize=9, textColor=score_text_color(sm>=4), alignment=TA_CENTER)),
             Paragraph('LULUS' if sl>=7 else 'TIDAK LULUS', ps('ss3', fontSize=9, textColor=score_text_color(sl>=7), alignment=TA_CENTER)),
             Paragraph(se or 'BELUM DINILAI', ps('ss4', fontSize=9, textColor=score_text_color(se=='LULUS'), alignment=TA_CENTER)),
-        ],
-    ]
-    st = Table(score_data, colWidths=[4.25*cm]*4)
+        ]
+        col_w = [4.25*cm]*4
+        style_extra = [('BACKGROUND',(3,0),(3,2), score_color(se=='LULUS'))]
+    else:
+        score_headers = [
+            Paragraph('KETELITIAN', ps('sl',  fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
+            Paragraph('MATEMATIKA', ps('sl2', fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
+            Paragraph('LOGIKA',     ps('sl3', fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#6B6A64'), alignment=TA_CENTER)),
+        ]
+        score_vals = [
+            Paragraph(f'{sk}/10', ps('sv',  fontSize=20, fontName='Helvetica-Bold', textColor=score_text_color(sk>=7), alignment=TA_CENTER)),
+            Paragraph(f'{sm}/5',  ps('sv2', fontSize=20, fontName='Helvetica-Bold', textColor=score_text_color(sm>=4), alignment=TA_CENTER)),
+            Paragraph(f'{sl}/10', ps('sv3', fontSize=20, fontName='Helvetica-Bold', textColor=score_text_color(sl>=7), alignment=TA_CENTER)),
+        ]
+        score_labels = [
+            Paragraph('LULUS' if sk>=7 else 'TIDAK LULUS', ps('ss',  fontSize=9, textColor=score_text_color(sk>=7), alignment=TA_CENTER)),
+            Paragraph('LULUS' if sm>=4 else 'TIDAK LULUS', ps('ss2', fontSize=9, textColor=score_text_color(sm>=4), alignment=TA_CENTER)),
+            Paragraph('LULUS' if sl>=7 else 'TIDAK LULUS', ps('ss3', fontSize=9, textColor=score_text_color(sl>=7), alignment=TA_CENTER)),
+        ]
+        col_w = [5.67*cm]*3
+        style_extra = []
+
+    score_data = [score_headers, score_vals, score_labels]
+    st = Table(score_data, colWidths=col_w)
     st.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(0,2), score_color(sk>=7)),
         ('BACKGROUND',(1,0),(1,2), score_color(sm>=4)),
         ('BACKGROUND',(2,0),(2,2), score_color(sl>=7)),
-        ('BACKGROUND',(3,0),(3,2), score_color(se=='LULUS')),
         ('BOX',(0,0),(-1,-1),1,colors.HexColor('#E0DED6')),
         ('INNERGRID',(0,0),(-1,-1),0.5,colors.HexColor('#E0DED6')),
         ('PADDING',(0,0),(-1,-1),8),
         ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
         ('ROWBACKGROUNDS',(0,0),(-1,-1),[colors.transparent,colors.transparent,colors.transparent]),
-    ]))
+    ] + style_extra))
     story.append(st)
     story.append(Spacer(1, 0.4*cm))
 
