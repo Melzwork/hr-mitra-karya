@@ -2524,8 +2524,8 @@ def tes_form_pelamar():
         pertanyaan = {}
         for i in range(1, 15):
             val = request.form.get(f'p{i}','').strip()
-            # Q5 and Q7: if Ya, append detail text
-            if i in [5, 7] and val == 'Ya':
+            # Q1-7, 9, 10: if Ya, append detail text from textarea
+            if i in [1, 2, 3, 4, 5, 6, 7, 9, 10] and val == 'Ya':
                 detail = request.form.get(f'p{i}_detail','').strip()
                 if detail:
                     val = f'Ya — {detail}'
@@ -2535,6 +2535,18 @@ def tes_form_pelamar():
                 if anggota:
                     val = f'Ya — {", ".join(anggota)}'
             pertanyaan[str(i)] = val
+
+        # Backend validation: Q1-7, 9, 10 require detail when Ya selected
+        for i in [1, 2, 3, 4, 5, 6, 7, 9, 10]:
+            if request.form.get(f'p{i}','').strip() == 'Ya':
+                if not request.form.get(f'p{i}_detail','').strip():
+                    return render_template('tes_form_pelamar.html',
+                                         error=f'Pertanyaan {i}: wajib isi keterangan jika jawaban Ya.')
+        # Q8 backend validation
+        if request.form.get('p8','').strip() == 'Ya':
+            if not request.form.getlist('p8_anggota'):
+                return render_template('tes_form_pelamar.html',
+                                     error='Pertanyaan 8: wajib pilih minimal satu anggota keluarga.')
 
         form_data = {
             'nama_lengkap': request.form.get('nama_lengkap','').strip(),
